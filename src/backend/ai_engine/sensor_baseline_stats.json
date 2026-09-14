@@ -1,0 +1,100 @@
+{
+    "sensor_2_smooth": {
+        "healthy_mean": -0.605901054445205,
+        "healthy_std": 0.6337650140041905,
+        "degraded_mean": 1.850059030093934,
+        "degraded_std": 0.48931196407570304,
+        "trend": "increasing"
+    },
+    "sensor_3_smooth": {
+        "healthy_mean": -0.5999921910719191,
+        "healthy_std": 0.6220150889068224,
+        "degraded_mean": 1.8594648996076693,
+        "degraded_std": 0.5557255391409036,
+        "trend": "increasing"
+    },
+    "sensor_4_smooth": {
+        "healthy_mean": -0.6223872190127526,
+        "healthy_std": 0.6012518758599275,
+        "degraded_mean": 1.8837897720827512,
+        "degraded_std": 0.4638217418421121,
+        "trend": "increasing"
+    },
+    "sensor_7_smooth": {
+        "healthy_mean": 0.6054630408146582,
+        "healthy_std": 0.6387064593384791,
+        "degraded_mean": -1.8312491487928306,
+        "degraded_std": 0.5244047322442308,
+        "trend": "decreasing"
+    },
+    "sensor_8_smooth": {
+        "healthy_mean": -0.501020449231352,
+        "healthy_std": 0.7304600121736178,
+        "degraded_mean": 1.5661923072879629,
+        "degraded_std": 0.876604481254606,
+        "trend": "increasing"
+    },
+    "sensor_9_smooth": {
+        "healthy_mean": -0.3408145883737926,
+        "healthy_std": 0.37719455226001114,
+        "degraded_mean": 1.1709742054133088,
+        "degraded_std": 2.049498930621115,
+        "trend": "increasing"
+    },
+    "sensor_11_smooth": {
+        "healthy_mean": -0.6216566911837544,
+        "healthy_std": 0.6115282605589527,
+        "degraded_mean": 1.8894206523665062,
+        "degraded_std": 0.45378689699637315,
+        "trend": "increasing"
+    },
+    "sensor_12_smooth": {
+        "healthy_mean": 0.60323053750003,
+        "healthy_std": 0.6354422866847673,
+        "degraded_mean": -1.8382006226804717,
+        "degraded_std": 0.53217786877617,
+        "trend": "decreasing"
+    },
+    "sensor_13_smooth": {
+        "healthy_mean": -0.5042539365556535,
+        "healthy_std": 0.7298089647117403,
+        "degraded_mean": 1.5565169247617927,
+        "degraded_std": 0.8777981484577961,
+        "trend": "increasing"
+    },
+    "sensor_14_smooth": {
+        "healthy_mean": -0.2663705531213886,
+        "healthy_std": 0.4238030723077915,
+        "degraded_mean": 0.9474195682411773,
+        "degraded_std": 2.1321328101227692,
+        "trend": "increasing"
+    },
+    "sensor_15_smooth": {
+        "healthy_mean": -0.615423034007675,
+        "healthy_std": 0.6095851256720961,
+        "degraded_mean": 1.8925036881618638,
+        "degraded_std": 0.4692945196499153,
+        "trend": "increasing"
+    },
+    "sensor_17_smooth": {
+        "healthy_mean": -0.6126239598226039,
+        "healthy_std": 0.6199229896361905,
+        "degraded_mean": 1.8655951630277443,
+        "degraded_std": 0.5216285423792146,
+        "trend": "increasing"
+    },
+    "sensor_20_smooth": {
+        "healthy_mean": 0.6149259766994303,
+        "healthy_std": 0.6265184481108256,
+        "degraded_mean": -1.8403390644835205,
+        "degraded_std": 0.5032871604964951,
+        "trend": "decreasing"
+    },
+    "sensor_21_smooth": {
+        "healthy_mean": 0.6127758142668766,
+        "healthy_std": 0.6268716923349962,
+        "degraded_mean": -1.8717167085513604,
+        "degraded_std": 0.4802153529083746,
+        "trend": "decreasing"
+    }
+}
