@@ -205,8 +205,25 @@ export FLASK_APP=run.py    # Mac/Linux
 flask db migrate -m "initial schema"
 flask db upgrade
 
-python -m app.seed         # populate with sample data
+python -m app.seed         # populate with MIXED-RISK sample data (see below)
 python -m app.verify_db    # confirm everything works
+
+## Seed Data — Mixed-Risk Demo Tiers
+
+`app/seed.py` seeds **10 engine units** with a **realistic mix of readiness states**
+so the demo shows all three dashboard scenarios:
+
+| Tier | # Engines | rul_clipped range | Mission durations | Expected risk_flag |
+|------|-----------|-------------------|-------------------|--------------------|
+| HEALTHY | 4 | ≥ 80 cycles | 5 / 8 / 10 cycles | SAFE (wide positive margin) |
+| MODERATE | 3 | 20 – 79 cycles | 15 / 25 / 40 cycles | MARGINAL or SAFE |
+| CRITICAL | 3 | < 20 cycles | 30 / 45 / 60 cycles | CRITICAL (negative margin) |
+
+**Key behaviour:**
+- Seed is **always clean**: running `python -m app.seed` truncates all tables first (FK-safe order) and reseeds from scratch. No stale all-critical data.
+- Cycle selection per tier is **mid-point of the matching rul_clipped window** (not always last cycle).
+- Mission durations are **tier-matched** so margins come out naturally positive (HEALTHY) or negative (CRITICAL).
+- All thresholds are configurable constants at the top of `seed.py` — adjust before demo.
 ```
 
 ---
