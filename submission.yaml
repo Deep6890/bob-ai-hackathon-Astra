@@ -1,27 +1,22 @@
 team:
-  name: "Team Astra"
+  name: "Team Astraea"
   track: "AI"
   lead:
-    name: "[Lead Name — replace before submission]"
-    email: "[lead@email.com — replace before submission]"
+    name: "Deep Kayastha"
+    email: "24aiml018@charusat.edu.in"
   members:
-    - name: "[Member 1 Name]"
-      email: "[member1@email.com]"
-    - name: "[Member 2 Name]"
-      email: "[member2@email.com]"
-    - name: "[Member 3 Name]"
-      email: "[member3@email.com]"
-    - name: "[Member 4 Name]"
-      email: "[member4@email.com]"
+    - name: "Dhairya Harivadan Patel"
+      email: "24aiml032@charusat.edu.in"
+    - name: "Parmar Krish Hiteshkumar"
+      email: "24aiml028@charusat.edu.in"
+    - name: "Mayur Ashokbhai Maghrola"
+      email: "24aiml021@charusat.edu.in"
 
 submission:
-  title: "AeroReady — Mission Readiness & Predictive Maintenance Platform"
+  title: "D1: AeroReady — Mission Readiness & Predictive Maintenance Platform"
 
   problem_statement: >
-    Unplanned aircraft-on-ground (AOG) events cost fleet operators millions per day.
-    Maintenance crews rely on fixed time-based schedules that either waste resources or
-    miss genuine degradation. There is no fast, data-driven way to ask "Is this engine
-    safe for today's mission?" and receive a justified, sensor-evidence-backed answer.
+    Military organisations cannot reliably determine whether critical aircraft and vehicles are mission-ready, relying on fixed calendar schedules rather than component condition. Unanalysed HUMS sensor data leads to unexpected failures, dropping operational readiness and taking weeks for recovery. With the US military spending $90B/year on maintenance, shifting to predictive approaches saves billions. There is a critical need for a fast, data-driven Copilot to ask "Is this asset safe for today's mission?" and receive a sensor-evidence-backed answer.
 
   solution_summary: >
     AeroReady ingests raw turbofan sensor telemetry, runs a dual-model ML pipeline

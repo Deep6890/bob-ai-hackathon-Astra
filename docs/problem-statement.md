@@ -2,19 +2,20 @@
 
 ## Background
 
-Military aviation, commercial airlines, and MRO (Maintenance, Repair & Overhaul) operators manage fleets of high-value turbofan engines whose condition directly determines mission availability. These engines degrade continuously through normal use: turbine blade wear, fuel system deposit buildup, and compressor efficiency losses accumulate cycle by cycle. Catching this degradation at the right time — not too early (wasteful) and not too late (dangerous) — is one of the hardest operational challenges in aviation maintenance.
+Military organisations cannot reliably determine whether aircraft, vehicles, and equipment are mission-ready. Maintenance currently runs on fixed calendar schedules regardless of actual component condition. Meanwhile, HUMS (Health & Usage Monitoring System) sensor data that could predict failures weeks in advance sits largely unanalysed. 
+
+When platforms fail unexpectedly, operational readiness drops and recovery takes weeks. The US military alone spends $90B/year on maintenance — shifting to predictive approaches can save billions while dramatically improving mission capability.
 
 ## The Problem
 
-**Fleet operators cannot quickly answer the most important question in aircraft maintenance: "Is this specific engine safe to fly today's specific mission?"**
+**Military and defence operators lack a fast, data-driven way to answer: "Is this specific asset safe to fly today's mission?"**
 
 Current approaches fall into two categories, both inadequate:
 
-1. **Time-based scheduled maintenance:** Engines are serviced every N flight cycles regardless of actual condition. This overservices healthy engines and underservices engines that degrade faster than average. It cannot respond to an unusual degradation event between scheduled windows.
+1. **Time-based scheduled maintenance:** Assets are serviced every N calendar days or flight cycles regardless of actual condition. This overservices healthy assets and underservices those that degrade faster than average.
+2. **Reactive maintenance:** Engineers wait until a fault code appears or performance drops visibly. By this point, the platform is already in a degraded state, leading to unexpected mission aborts or Aircraft-on-Ground (AOG) events.
 
-2. **Reactive maintenance:** Engineers wait until a fault code appears or performance drops visibly. By this point, the engine is already in a degraded state that may require expensive emergency overhaul — or worse, create an unplanned Aircraft-on-Ground (AOG) event.
-
-AOG events cost commercial operators between $10,000 and $150,000 per day in direct costs, plus the cascading effect of flight cancellations and passenger disruption. In defence contexts, a grounded aircraft can mean a failed mission with serious operational consequences.
+The US military spends $90B/year on maintenance. AOG events and unscheduled downtime not only waste resources but create severe risks to operational readiness.
 
 The specific pain points:
 

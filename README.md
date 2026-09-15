@@ -1,4 +1,4 @@
-# ✈️ AeroReady — Mission Readiness & Predictive Maintenance Platform
+# ✈️ D1: AeroReady — Mission Readiness & Predictive Maintenance Platform
 
 > **IBM Bob AI Hackathon Submission** — AI Track
 
@@ -10,16 +10,16 @@ AeroReady is a mission readiness and predictive maintenance platform for turbofa
 
 | Field | Value |
 |---|---|
-| **Team Name** | Team Astra |
+| **Team Name** | Team Astraea |
 | **Track** | AI |
-| **Team Lead** | [Lead Name] — [lead@email.com] |
-| **Members** | [Member 1], [Member 2], [Member 3], [Member 4] |
+| **Team Lead** | Deep Kayastha — [24aiml018@charusat.edu.in] |
+| **Members** | Dhairya Harivadan Patel, Parmar Krish Hiteshkumar, Mayur Ashokbhai Maghrola |
 
 ---
 
 ## 🎯 Problem Statement
 
-Unplanned aircraft-on-ground (AOG) events cost airlines and defence operators millions per day. Maintenance crews currently rely on fixed time-based inspection schedules that either service engines too early (wasting resources) or too late (risking mission failure). There is no fast, data-driven way for a fleet operator to ask "Is this engine safe for today's mission?" and get a justified answer backed by real sensor evidence.
+Military organisations cannot reliably determine whether critical aircraft and vehicles are mission-ready. Maintenance currently runs on fixed calendar schedules regardless of actual component condition, while HUMS (Health & Usage Monitoring System) sensor data that could predict failures weeks in advance sits unanalysed. When platforms fail unexpectedly, operational readiness drops and recovery takes weeks. The US military spends $90B/year on maintenance — shifting to predictive approaches saves billions. There is a critical need for a fast, data-driven Copilot to ask "Is this asset safe for today's mission?" and receive a justified, sensor-evidence-backed answer.
 
 ---
 
