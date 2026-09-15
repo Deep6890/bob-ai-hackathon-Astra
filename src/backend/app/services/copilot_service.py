@@ -10,6 +10,9 @@ Design principles:
 - Evidence dict accompanies every answer so callers can verify all claims.
 - Questions are routed to specialised handlers by keyword matching.
 """
+import os
+import json
+from groq import Groq
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.engine_repository import EngineRepository
 from app.repositories.sensor_repository import SensorRepository
@@ -82,7 +85,15 @@ class CopilotService:
         # Build evidence dict regardless of which handler runs
         evidence = self._build_evidence(engine_id, pred, readiness, sensors)
 
-        # Route by keyword priority
+        # Attempt Groq explanation if API key is present
+        if os.environ.get("GROQ_API_KEY"):
+            try:
+                answer = self._get_groq_explanation(evidence, question)
+                return {"answer": answer, "evidence": evidence, "engine_id": engine_id}
+            except Exception as e:
+                log("GROQ", f"Groq explanation failed: {str(e)}. Falling back to deterministic.")
+
+        # Route by keyword priority (Deterministic fallback)
         if _KW_READY & words:
             answer = self._handle_readiness(evidence, pred, readiness, sensors)
         elif _KW_SENSOR & words:
@@ -98,6 +109,57 @@ class CopilotService:
             answer = self._handle_general(evidence, pred, readiness, sensors)
 
         return {"answer": answer, "evidence": evidence, "engine_id": engine_id}
+
+    # -----------------------------------------------------------------------
+    # Groq Reasoning Layer
+    # -----------------------------------------------------------------------
+
+    def _get_groq_explanation(self, evidence: dict, question: str) -> str:
+        """
+        Uses Groq as an optional reasoning layer over the deterministic evidence.
+        """
+        # If insufficient evidence
+        if not evidence or (not evidence.get("rul_predicted") and evidence.get("fleet_size") is None):
+            return "Insufficient evidence available."
+
+        # Configure client
+        client_kwargs = {"api_key": os.environ.get("GROQ_API_KEY")}
+        base_url = os.environ.get("GROQ_BASE_URL")
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        client = Groq(**client_kwargs)
+        model = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+
+        system_prompt = (
+            "You are the natural-language explanation layer for AeroReady.\n\n"
+            "Use ONLY the supplied AeroReady evidence. The evidence is authoritative.\n"
+            "Do not invent, calculate, estimate, or assume operational facts.\n"
+            "Do not create sensor values, RUL values, failure predictions, component failures,\n"
+            "maintenance history, mission requirements, or risk values that are not explicitly\n"
+            "present in the evidence.\n"
+            "Do not override the readiness result.\n"
+            "If the supplied evidence does not support the requested answer, respond:\n"
+            "'Insufficient evidence available.'\n"
+            "Explain the supplied evidence clearly for a maintenance/mission decision-maker."
+        )
+
+        user_prompt = (
+            f"User Question: {question}\n\n"
+            f"AeroReady Evidence JSON:\n{json.dumps(evidence, indent=2)}"
+        )
+
+        # Call Groq API
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            temperature=0.0,
+            max_tokens=300
+        )
+        
+        return chat_completion.choices[0].message.content.strip()
 
     # -----------------------------------------------------------------------
     # Response handlers — each returns a plain string

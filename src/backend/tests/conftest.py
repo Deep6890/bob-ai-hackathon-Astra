@@ -19,13 +19,10 @@ from app import create_app, db as _db
 @pytest.fixture(scope="session")
 def app():
     """Flask application configured for in-memory SQLite testing."""
-    application = create_app()
-    application.config.update({
+    application = create_app(test_config={
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-        # Disable model loading for most tests (speeds up test suite significantly)
-        # Individual tests that need the ML pipeline should mock ModelHandler
     })
     yield application
 

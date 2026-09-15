@@ -59,7 +59,7 @@ def _get(path: str) -> dict | list:
     resp = requests.get(url, timeout=TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
-    return data.get("data", data)
+    return data.get("data", data) if isinstance(data, dict) else data
 
 
 def _post(path: str, body: dict) -> dict:

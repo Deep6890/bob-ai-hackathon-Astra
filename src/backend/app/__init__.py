@@ -14,15 +14,21 @@ migrate = Migrate()
 
 from app.utils.logger import setup_structured_logger, log
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     
     setup_structured_logger()
     log("SERVER", "Backend started")
     app.config.from_object(Config)
     
-    # In case DATABASE_URL is set in environment, use it, otherwise dummy SQLite
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+    if test_config:
+        app.config.update(test_config)
+    
+    # In case DATABASE_URL is set in environment, use it, otherwise use instance/app.db
+    if 'SQLALCHEMY_DATABASE_URI' not in app.config or not app.config['SQLALCHEMY_DATABASE_URI']:
+        db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'instance', 'app.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{db_path}')
+        
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize DB extensions
