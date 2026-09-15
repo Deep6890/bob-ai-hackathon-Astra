@@ -1,143 +1,394 @@
-import { useState } from 'react'
-import { Search, Filter, Activity, CheckCircle2, AlertTriangle, XCircle, ChevronRight, Calendar, Gauge, Wrench, Radio } from 'lucide-react'
+import { useContext, useEffect, useState } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+} from 'recharts';
+import { Loader2, X, ChevronRight, Activity } from 'lucide-react';
+import { AppDataContext } from '../context/AppDataContext';
 
-const assets = [
-  { id: 'F-102', type: 'Fighter Aircraft', health: 92, risk: 'Low', status: 'Mission Ready', lastMaintenance: 'Oct 12, 2026', nextInspection: 'Nov 28, 2026', engine: 94, hydraulics: 89, avionics: 91, fuel: 87, landingGear: 96 },
-  { id: 'F-118', type: 'Fighter Aircraft', health: 78, risk: 'High', status: 'At Risk', lastMaintenance: 'Sep 28, 2026', nextInspection: 'Dec 03, 2026', engine: 72, hydraulics: 65, avionics: 88, fuel: 82, landingGear: 85 },
-  { id: 'F-204', type: 'Fighter Aircraft', health: 71, risk: 'High', status: 'At Risk', lastMaintenance: 'Sep 15, 2026', nextInspection: 'Dec 12, 2026', engine: 75, hydraulics: 68, avionics: 80, fuel: 62, landingGear: 79 },
-  { id: 'F-307', type: 'Transport Aircraft', health: 95, risk: 'Low', status: 'Mission Ready', lastMaintenance: 'Oct 05, 2026', nextInspection: 'Jan 05, 2027', engine: 96, hydraulics: 93, avionics: 95, fuel: 94, landingGear: 96 },
-  { id: 'F-410', type: 'Transport Aircraft', health: 88, risk: 'Medium', status: 'Mission Ready', lastMaintenance: 'Oct 18, 2026', nextInspection: 'Dec 22, 2026', engine: 90, hydraulics: 84, avionics: 89, fuel: 86, landingGear: 92 },
-  { id: 'F-505', type: 'Reconnaissance', health: 91, risk: 'Low', status: 'Mission Ready', lastMaintenance: 'Oct 20, 2026', nextInspection: 'Dec 18, 2026', engine: 92, hydraulics: 88, avionics: 94, fuel: 89, landingGear: 90 },
-  { id: 'F-612', type: 'Fighter Aircraft', health: 65, risk: 'Critical', status: 'Critical', lastMaintenance: 'Aug 30, 2026', nextInspection: 'Nov 15, 2026', engine: 58, hydraulics: 55, avionics: 78, fuel: 60, landingGear: 70 },
-  { id: 'F-720', type: 'Transport Aircraft', health: 93, risk: 'Low', status: 'Mission Ready', lastMaintenance: 'Oct 01, 2026', nextInspection: 'Dec 28, 2026', engine: 94, hydraulics: 91, avionics: 93, fuel: 92, landingGear: 95 },
-]
-
-function HealthBar({ value }) {
-  const color = value >= 90 ? 'bg-green-500' : value >= 70 ? 'bg-amber-500' : 'bg-red-500'
-  return (
-    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-      <div className={`h-full ${color} rounded-full`} style={{ width: `${value}%` }} />
-    </div>
-  )
+/* ── UI Components ───────────────────────────────────────────────────────── */
+function StatusIndicator({ state }) {
+  if (!state) return <span className="w-1.5 h-1.5 rounded-full bg-borderSecondary" />;
+  const s = state.toUpperCase();
+  if (s === 'NORMAL') return <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />;
+  if (s === 'DEGRADING') return <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B]" />;
+  if (s === 'ABNORMAL') return <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444]" />;
+  return <span className="w-1.5 h-1.5 rounded-full bg-borderSecondary" />;
 }
 
-export default function AssetHealthPage() {
-  const [selected, setSelected] = useState(null)
-  const [search, setSearch] = useState('')
+function stateColors(state) {
+  if (!state) return 'text-textMuted';
+  const s = state.toUpperCase();
+  if (s === 'NORMAL') return 'text-[#10B981]';
+  if (s === 'DEGRADING') return 'text-[#F59E0B] font-medium';
+  if (s === 'ABNORMAL') return 'text-[#EF4444] font-medium';
+  return 'text-textMuted';
+}
 
-  const filtered = assets.filter((a) =>
-    a.id.toLowerCase().includes(search.toLowerCase()) || a.type.toLowerCase().includes(search.toLowerCase())
-  )
+function getAttentionLevel(sensor) {
+  if (!sensor || sensor.state === 'UNKNOWN') return 'UNAVAILABLE';
+  if (sensor.state === 'NORMAL') return 'LOW';
+  
+  const isPersistent = sensor.persistence >= 0.6;
+  const isStrongDev = sensor.normalized_deviation != null && Math.abs(sensor.normalized_deviation) > 2.0;
+  
+  if (sensor.state === 'DEGRADING' && isPersistent && isStrongDev) return 'HIGH';
+  if (sensor.state === 'DEGRADING' && isPersistent) return 'HIGH';
+  if (sensor.state === 'ABNORMAL' && isPersistent) return 'MEDIUM';
+  if (sensor.state === 'ABNORMAL') return 'MEDIUM';
+  return 'LOW';
+}
+
+function formatDeviation(dev) {
+  if (dev == null) return '—';
+  const sign = dev > 0 ? '+' : '';
+  return `${sign}${dev.toFixed(2)}σ`;
+}
+
+function formatTrend(slope) {
+  if (slope == null) return '—';
+  if (Math.abs(slope) < 1e-4) return 'Stable';
+  const dirIcon = slope > 0 ? '↑' : '↓';
+  const dirText = slope > 0 ? 'increasing' : 'decreasing';
+  return (
+    <span className="flex items-center gap-1">
+      <span className="font-mono text-[10px]">{dirIcon}</span> {dirText}
+    </span>
+  );
+}
+
+function generateEvidenceText(sensor) {
+  if (!sensor || sensor.state === 'UNKNOWN') {
+    return "Health classification is unavailable because the backend did not provide sufficient classification evidence.";
+  }
+  if (sensor.state === 'NORMAL') {
+    return "No persistent anomaly was detected in the recent observation window.";
+  }
+  if (sensor.state === 'DEGRADING') {
+    return "Persistent anomalous behaviour was observed over the recent window. The sensor trend is aligning with the historical degradation direction.";
+  }
+  if (sensor.state === 'ABNORMAL') {
+    return "The sensor has remained anomalous across the recent observation window, but the current trend does not provide enough evidence to classify it as degrading.";
+  }
+  return "Insufficient data.";
+}
+
+/* ── Deep Inspection Drawer ──────────────────────────────────────────────── */
+function SensorDrawer({ sensor, unitNumber, history, onClose }) {
+  if (!sensor) return null;
+  
+  const level = getAttentionLevel(sensor);
+  const evidenceText = generateEvidenceText(sensor);
+  
+  // Prepare history data
+  const chartData = history?.filter(r => r[sensor.sensor] != null) || [];
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search assets..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-aviation-500 focus:border-transparent w-full max-w-sm placeholder:text-slate-400"
-          />
+    <div 
+      className="absolute top-0 right-0 w-full md:w-[450px] h-full bg-white/70 border-l border-white/80 shadow-[-12px_0_40px_rgba(0,0,0,0.04)] overflow-y-auto flex flex-col z-10 transition-transform duration-300"
+      style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}
+    >
+      <div className="px-6 py-5 border-b border-borderLight flex items-center justify-between sticky top-0 bg-white/50 backdrop-blur-md z-20">
+        <div>
+          <h3 className="text-lg font-bold font-mono text-textPrimary">{sensor.sensor}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs ${stateColors(sensor.state)}`}>{sensor.state}</span>
+            <span className="text-xs text-textMuted">·</span>
+            <span className="text-xs text-textSecondary">{level} attention</span>
+          </div>
         </div>
+        <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 transition-colors text-textMuted">
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
-      {selected && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-xl font-bold text-navy-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-aviation-600" />
-                {selected.id} — Component Health
-              </h3>
-              <p className="text-sm text-slate-500">{selected.type}</p>
+      <div className="p-6 flex flex-col gap-8">
+        
+        {/* Evidence Metrics */}
+        <div>
+          <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-4">Current Evidence</p>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center pb-2 border-b border-borderLight/50">
+              <span className="text-sm text-textSecondary">Persistence</span>
+              <span className="text-sm font-medium text-textPrimary">{sensor.persistence != null ? `${Math.round(sensor.persistence * 100)}%` : '—'}</span>
             </div>
-            <button onClick={() => setSelected(null)} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-              Close
-            </button>
+            <div className="flex justify-between items-center pb-2 border-b border-borderLight/50">
+              <span className="text-sm text-textSecondary">Trend</span>
+              <span className="text-sm font-medium text-textPrimary">{formatTrend(sensor.slope)}</span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b border-borderLight/50">
+              <span className="text-sm text-textSecondary">Deviation</span>
+              <span className="text-sm font-medium text-textPrimary">{formatDeviation(sensor.normalized_deviation)}</span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b border-borderLight/50">
+              <span className="text-sm text-textSecondary">Anomaly Score</span>
+              <span className="text-sm font-medium text-textPrimary">{sensor.anomaly_score != null ? sensor.anomaly_score.toFixed(3) : '—'}</span>
+            </div>
           </div>
-          <div className="grid grid-cols-5 gap-4">
-            {[
-              { label: 'Engine', value: selected.engine },
-              { label: 'Hydraulics', value: selected.hydraulics },
-              { label: 'Avionics', value: selected.avionics },
-              { label: 'Fuel System', value: selected.fuel },
-              { label: 'Landing Gear', value: selected.landingGear },
-            ].map((sys) => (
-              <div key={sys.label} className="text-center p-3 bg-slate-50 rounded-xl">
-                <p className="text-xs text-slate-500 mb-2">{sys.label}</p>
-                <HealthBar value={sys.value} />
-                <p className="text-sm font-bold text-navy-900 mt-2">{sys.value}%</p>
-              </div>
-            ))}
+        </div>
+
+        {/* Why flagged */}
+        <div>
+          <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-3">Why is this flagged?</p>
+          <p className="text-sm text-textSecondary leading-relaxed bg-white/60 p-4 rounded-xl border border-white/80 shadow-subtle">
+            {evidenceText}
+          </p>
+        </div>
+
+        {/* History Chart */}
+        <div>
+          <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-3">Sensor History</p>
+          <div className="bg-white/60 p-4 rounded-xl border border-white/80 shadow-subtle h-56 flex flex-col">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E7E7E5" vertical={false} />
+                  <XAxis 
+                    dataKey="time_cycles" 
+                    tick={{ fontSize: 10, fill: '#929292' }} 
+                    axisLine={false} tickLine={false} 
+                    tickFormatter={(v, i) => i === 0 || i === chartData.length - 1 ? `Cycle ${v}` : ''}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: '#929292' }} axisLine={false} tickLine={false} />
+                  <RechartsTooltip
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #E7E7E5', fontSize: '12px', padding: '10px 14px', background: 'rgba(255,255,255,0.95)', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                    formatter={(v) => [typeof v === 'number' ? v.toFixed(4) : v, 'Value']}
+                    labelFormatter={(l) => `Cycle ${l}`}
+                  />
+                  <Line
+                    type="monotone" dataKey={sensor.sensor}
+                    stroke="#181818" strokeWidth={2}
+                    dot={false} activeDot={{ r: 4, fill: '#181818', strokeWidth: 0 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-xs text-textMuted">No history available</div>
+            )}
+            <div className="mt-2 text-center">
+              <span className="text-[10px] text-textMuted bg-borderSecondary/30 px-2 py-0.5 rounded-full">Observed data only</span>
+            </div>
           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page Component ─────────────────────────────────────────────────── */
+export default function AssetHealthPage({ engineContext }) {
+  const { enginesLoading, engineSensorsById, sensorHistoryById, fetchEngineData } = useContext(AppDataContext);
+  const [inspectingSensor, setInspectingSensor] = useState(null);
+
+  useEffect(() => {
+    if (engineContext) {
+      fetchEngineData(engineContext);
+    }
+  }, [engineContext, fetchEngineData]);
+
+  // Reset inspected sensor when changing engines
+  useEffect(() => {
+    setInspectingSensor(null);
+  }, [engineContext]);
+
+  if (enginesLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-5 h-5 text-textMuted animate-spin" /></div>;
+  }
+  if (!engineContext) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white rounded-2xl border border-borderLight">
+        <p className="text-base font-semibold text-textPrimary mb-1">No Engine Selected</p>
+      </div>
+    );
+  }
+
+  const sensors = engineSensorsById[engineContext] || [];
+  const history = sensorHistoryById[engineContext] || [];
+
+  // Group and sort sensors
+  const normal = [];
+  const degrading = [];
+  const abnormal = [];
+  const unknown = [];
+
+  sensors.forEach(s => {
+    if (s.state === 'NORMAL') normal.push(s);
+    else if (s.state === 'DEGRADING') degrading.push(s);
+    else if (s.state === 'ABNORMAL') abnormal.push(s);
+    else unknown.push(s);
+  });
+
+  const requiresAttentionCount = degrading.length + abnormal.length;
+
+  // Sorting logic for ranking table:
+  // 1. Degrading (High -> Medium -> Low)
+  // 2. Abnormal (High -> Medium -> Low)
+  // 3. Normal
+  const sortedIssues = [...degrading, ...abnormal].sort((a, b) => {
+    const levelOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'UNAVAILABLE': 0 };
+    return levelOrder[getAttentionLevel(b)] - levelOrder[getAttentionLevel(a)];
+  });
+
+  return (
+    <div className="relative min-h-[75vh] flex flex-col gap-6 -m-4 p-4" style={{ background: '#F7F7F5' }}>
+      
+      {/* Drawer overlay */}
+      {inspectingSensor && (
+        <div className="absolute inset-0 z-30 overflow-hidden rounded-2xl">
+          <div className="absolute inset-0 bg-black/5 backdrop-blur-sm z-0" onClick={() => setInspectingSensor(null)} />
+        <SensorDrawer 
+            sensor={inspectingSensor} 
+            unitNumber={engineContext} 
+            history={history}
+            onClose={() => setInspectingSensor(null)} 
+          />
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Asset</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Health Score</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Risk Level</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Status</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Last Maintenance</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Next Inspection</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((asset) => (
-                <tr key={asset.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-semibold text-navy-900">{asset.id}</p>
-                      <p className="text-[11px] text-slate-500">{asset.type}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-20">
-                        <HealthBar value={asset.health} />
-                      </div>
-                      <span className="text-sm font-bold text-navy-900">{asset.health}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                      asset.risk === 'Low' ? 'bg-green-50 text-green-700' : asset.risk === 'Medium' ? 'bg-amber-50 text-amber-700' : asset.risk === 'High' ? 'bg-orange-50 text-orange-700' : 'bg-red-50 text-red-700'
-                    }`}>
-                      {asset.risk}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                      asset.status === 'Mission Ready' ? 'bg-green-50 text-green-700' : asset.status === 'At Risk' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-                    }`}>
-                      {asset.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{asset.lastMaintenance}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{asset.nextInspection}</td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelected(asset)}
-                      className="text-xs font-medium text-aviation-600 hover:text-aviation-800 flex items-center gap-1 transition-colors"
-                    >
-                      <Activity className="w-3.5 h-3.5" />
-                      Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Top Header & Selector */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-textPrimary mb-1">Unit {engineContext}</h2>
+          <p className="text-sm text-textSecondary">Sensor Health Investigation</p>
         </div>
       </div>
+
+      {/* Health Overview */}
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="w-4 h-4 text-textMuted" />
+          <p className="text-xs font-semibold text-textMuted uppercase tracking-wider">Overall sensor condition</p>
+        </div>
+        
+        {sensors.length > 0 ? (
+          <>
+            <h3 className={`text-lg font-bold mb-1 ${requiresAttentionCount > 0 ? 'text-[#EF4444]' : 'text-textPrimary'}`}>
+              {requiresAttentionCount > 0 ? 'Attention required' : 'Optimal'}
+            </h3>
+            <p className="text-sm text-textSecondary mb-4">
+              {requiresAttentionCount} sensors require inspection
+            </p>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+                <span className="text-sm font-medium text-[#F59E0B]">{degrading.length} Degrading</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+                <span className="text-sm font-medium text-[#EF4444]">{abnormal.length} Abnormal</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                <span className="text-sm text-textSecondary">{normal.length} Normal</span>
+              </div>
+            </div>
+            
+            {/* Horizontal Bar */}
+            <div className="w-full h-1.5 flex rounded-full overflow-hidden mt-6 bg-borderSecondary/30">
+              {degrading.length > 0 && <div style={{ width: `${(degrading.length/sensors.length)*100}%` }} className="bg-[#F59E0B]" />}
+              {abnormal.length > 0 && <div style={{ width: `${(abnormal.length/sensors.length)*100}%` }} className="bg-[#EF4444]" />}
+              {normal.length > 0 && <div style={{ width: `${(normal.length/sensors.length)*100}%` }} className="bg-[#10B981]" />}
+              {unknown.length > 0 && <div style={{ width: `${(unknown.length/sensors.length)*100}%` }} className="bg-borderSecondary" />}
+            </div>
+          </>
+        ) : (
+          <div className="py-2">
+            <h3 className="text-sm font-medium text-textPrimary">Classification unavailable</h3>
+            <p className="text-xs text-textSecondary mt-1">No sensor-state evidence has been returned by the backend.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Sensor Attention Ranking */}
+      {sensors.length > 0 && (
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-white shadow-[0_8px_30px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className="px-6 py-5 border-b border-borderLight/50">
+            <p className="text-xs font-semibold text-textMuted uppercase tracking-wider">Sensor Attention</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-borderLight/50">
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Sensor</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">State</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Severity</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Persistence</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Trend</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider">Deviation</th>
+                  <th className="px-6 py-3 text-[10px] font-semibold text-textMuted uppercase tracking-wider text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-borderLight/30">
+                {/* 1. Issues first */}
+                {sortedIssues.map((s) => (
+                  <tr 
+                    key={s.sensor} 
+                    className="hover:bg-black/[0.02] transition-colors cursor-pointer group"
+                    onClick={() => setInspectingSensor(s)}
+                  >
+                    <td className="px-6 py-4 text-sm font-mono text-textPrimary">{s.sensor}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <StatusIndicator state={s.state} />
+                        <span className={`text-xs ${stateColors(s.state)}`}>{s.state}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-semibold ${getAttentionLevel(s) === 'HIGH' ? 'text-[#EF4444]' : getAttentionLevel(s) === 'MEDIUM' ? 'text-[#F59E0B]' : 'text-textMuted'}`}>
+                        {getAttentionLevel(s)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-textSecondary tabular-nums">{s.persistence != null ? `${Math.round(s.persistence * 100)}%` : '—'}</td>
+                    <td className="px-6 py-4 text-xs text-textSecondary">{formatTrend(s.slope)}</td>
+                    <td className="px-6 py-4 text-xs text-textSecondary tabular-nums">{formatDeviation(s.normalized_deviation)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <button className="text-xs font-medium text-textSecondary group-hover:text-textPrimary transition-colors flex items-center justify-end gap-1 w-full">
+                        Inspect <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                
+                {/* 2. Normal sensors */}
+                {normal.map((s) => (
+                  <tr 
+                    key={s.sensor} 
+                    className="hover:bg-black/[0.02] transition-colors cursor-pointer group"
+                    onClick={() => setInspectingSensor(s)}
+                  >
+                    <td className="px-6 py-3 text-sm font-mono text-textPrimary">{s.sensor}</td>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        <StatusIndicator state={s.state} />
+                        <span className={`text-xs ${stateColors(s.state)}`}>{s.state}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-xs text-textMuted">{getAttentionLevel(s)}</td>
+                    <td className="px-6 py-3 text-xs text-textSecondary tabular-nums">{s.persistence != null ? `${Math.round(s.persistence * 100)}%` : '—'}</td>
+                    <td className="px-6 py-3 text-xs text-textSecondary">{formatTrend(s.slope)}</td>
+                    <td className="px-6 py-3 text-xs text-textSecondary tabular-nums">{formatDeviation(s.normalized_deviation)}</td>
+                    <td className="px-6 py-3 text-right">
+                      <button className="text-xs font-medium text-borderSecondary group-hover:text-textSecondary transition-colors flex items-center justify-end gap-1 w-full">
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* 3. Unknown Sensors collapsed */}
+          {unknown.length > 0 && (
+            <div className="px-6 py-4 bg-borderLight/20 border-t border-borderLight/50">
+              <p className="text-xs text-textMuted">
+                {unknown.length} sensor{unknown.length > 1 ? 's' : ''} without health classification.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -13,7 +13,7 @@ try:
 except ImportError as e:
     print(f"Error importing existing ML modules: {e}")
 
-class ModelService:
+class ModelHandler:
     _instance = None
     
     def __init__(self):
@@ -68,3 +68,4 @@ class ModelService:
         if not self.is_loaded or self.copilot is None:
             raise APIError("Models are not loaded or unavailable.", code="MODELS_UNAVAILABLE", status_code=503)
         return self.copilot
+

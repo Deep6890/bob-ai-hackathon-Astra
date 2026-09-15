@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
 from app.models import (
-    Asset, SensorReading, ServiceRecord,
+    Asset, SensorReading,
     Mission, Prediction, ReadinessResult
 )
 
@@ -115,30 +115,13 @@ def verify():
                     f"score={rr.readiness_score:.1f}"
                 )
 
-        # ── Query 4: ServiceRecord count per asset ────────────────────────────
-        separator("Q4: Service history per asset")
-        svc_counts = (
-            db.session.query(
-                Asset.unit_number,
-                db.func.count(ServiceRecord.id).label("svc_count")
-            )
-            .join(ServiceRecord, Asset.id == ServiceRecord.asset_id)
-            .group_by(Asset.unit_number)
-            .order_by(Asset.unit_number)
-            .all()
-        )
-        if not svc_counts:
-            print("  No service records found")
-        else:
-            for unit, count in svc_counts:
-                print(f"  unit={unit:3d}  service_records={count}")
+
 
         # ── Query 5: Table row counts ─────────────────────────────────────────
         separator("Q5: Row counts for all tables")
         tables = [
             ("assets",           Asset),
             ("sensor_readings",  SensorReading),
-            ("service_records",  ServiceRecord),
             ("missions",         Mission),
             ("predictions",      Prediction),
             ("readiness_results",ReadinessResult),

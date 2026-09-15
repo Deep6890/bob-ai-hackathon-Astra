@@ -1,154 +1,285 @@
-import { useState } from 'react'
-import { Search, Filter, Plane, CheckCircle2, AlertTriangle, XCircle, ChevronRight, Heart, TrendingDown, Clock } from 'lucide-react'
+/**
+ * Fleet.jsx
+ * =========
+ * Compact searchable/sortable/filterable table.
+ * Replaces the 100-card grid.
+ * All data from backend — no hardcoded values.
+ */
+import { useContext, useEffect, useState, useMemo } from 'react';
+import { Search, ChevronUp, ChevronDown, Loader2, ArrowUpDown, Filter } from 'lucide-react';
+import { AppDataContext } from '../context/AppDataContext';
 
-const aircraft = [
-  { id: 'F-102', type: 'Fighter Aircraft', health: 92, risk: 'Low', status: 'Mission Ready', missions: 142, flightHours: 2840, lastMaintained: 'Oct 12, 2026', nextInspection: 'Nov 28, 2026' },
-  { id: 'F-118', type: 'Fighter Aircraft', health: 78, risk: 'High', status: 'At Risk', missions: 98, flightHours: 1920, lastMaintained: 'Sep 28, 2026', nextInspection: 'Dec 03, 2026' },
-  { id: 'F-204', type: 'Fighter Aircraft', health: 71, risk: 'High', status: 'At Risk', missions: 87, flightHours: 1750, lastMaintained: 'Sep 15, 2026', nextInspection: 'Dec 12, 2026' },
-  { id: 'F-307', type: 'Transport Aircraft', health: 95, risk: 'Low', status: 'Mission Ready', missions: 203, flightHours: 4100, lastMaintained: 'Oct 05, 2026', nextInspection: 'Jan 05, 2027' },
-  { id: 'F-410', type: 'Transport Aircraft', health: 88, risk: 'Medium', status: 'Mission Ready', missions: 156, flightHours: 3200, lastMaintained: 'Oct 18, 2026', nextInspection: 'Dec 22, 2026' },
-  { id: 'F-505', type: 'Reconnaissance', health: 91, risk: 'Low', status: 'Mission Ready', missions: 67, flightHours: 1340, lastMaintained: 'Oct 20, 2026', nextInspection: 'Dec 18, 2026' },
-  { id: 'F-612', type: 'Fighter Aircraft', health: 65, risk: 'Critical', status: 'Critical', missions: 45, flightHours: 1100, lastMaintained: 'Aug 30, 2026', nextInspection: 'Nov 15, 2026' },
-  { id: 'F-720', type: 'Transport Aircraft', health: 93, risk: 'Low', status: 'Mission Ready', missions: 178, flightHours: 3560, lastMaintained: 'Oct 01, 2026', nextInspection: 'Dec 28, 2026' },
-]
-
-function StatusBadge({ status }) {
-  if (status === 'Mission Ready') return <span className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold rounded-full uppercase tracking-wide">Mission Ready</span>
-  if (status === 'At Risk') return <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-full uppercase tracking-wide">At Risk</span>
-  return <span className="px-2 py-0.5 bg-red-50 text-red-700 text-[10px] font-bold rounded-full uppercase tracking-wide">Critical</span>
+function StatusDot({ status }) {
+  if (!status) return <span className="w-2 h-2 rounded-full bg-borderSecondary inline-block" />;
+  const s = status.toUpperCase();
+  const color =
+    s === 'SAFE' || s === 'READY' ? 'bg-accent' :
+    s === 'MARGINAL' || s === 'WARNING' ? 'bg-warning' :
+    'bg-danger';
+  return <span className={`w-2 h-2 rounded-full ${color} inline-block shrink-0`} />;
 }
 
-export default function FleetPage() {
-  const [selected, setSelected] = useState(null)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('All')
+function PriorityBadge({ priority }) {
+  if (!priority) return <span className="text-textMuted text-xs">—</span>;
+  const cls =
+    priority === 'HIGH'   ? 'text-danger font-bold' :
+    priority === 'MEDIUM' ? 'text-warning font-semibold' :
+    'text-textMuted';
+  return <span className={`text-xs ${cls}`}>{priority}</span>;
+}
 
-  const filtered = aircraft.filter((a) => {
-    const matchSearch = a.id.toLowerCase().includes(search.toLowerCase()) || a.type.toLowerCase().includes(search.toLowerCase())
-    const matchFilter = filter === 'All' || a.status === filter
-    return matchSearch && matchFilter
-  })
+function SortIcon({ field, sortField, sortDir }) {
+  if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-textMuted ml-1 inline" />;
+  return sortDir === 'asc'
+    ? <ChevronUp className="w-3 h-3 text-textPrimary ml-1 inline" />
+    : <ChevronDown className="w-3 h-3 text-textPrimary ml-1 inline" />;
+}
+
+const PRIORITY_FILTERS = ['All', 'HIGH', 'MEDIUM', 'LOW'];
+const STATUS_FILTERS   = ['All', 'SAFE', 'MARGINAL', 'CRITICAL', 'READY', 'WARNING', 'NOT READY'];
+
+export default function FleetPage({ onNavigate }) {
+  const {
+    engines,
+    enginesLoading,
+    enginesError,
+    enginePredictionById,
+    missionReadinessById,
+    fetchEngineData,
+  } = useContext(AppDataContext);
+
+  const [search,          setSearch]         = useState('');
+  const [priorityFilter,  setPriorityFilter]  = useState('All');
+  const [statusFilter,    setStatusFilter]    = useState('All');
+  const [sortField,       setSortField]       = useState('priority');
+  const [sortDir,         setSortDir]         = useState('asc');
+  const [showFilters,     setShowFilters]     = useState(false);
+
+  // Load data for all engines when fleet page mounts
+  useEffect(() => {
+    engines.forEach(e => fetchEngineData(e.unit_number));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engines.length]);
+
+  function handleSort(field) {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }
+
+  const rows = useMemo(() => {
+    const PRIORITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+    return engines
+      .map(e => {
+        const pred     = enginePredictionById[e.unit_number];
+        const r        = missionReadinessById[e.unit_number];
+        return {
+          unit:     e.unit_number,
+          cycle:    r?.latest_cycle ?? e.latest_cycle,
+          rul:      r?.rul_assessment?.predicted_rul_cycles ?? pred?.rul_predicted,
+          margin:   r?.rul_assessment?.margin_of_safety,
+          status:   r?.combined_assessment?.mission_readiness,
+          priority: r?.combined_assessment?.maintenance_priority,
+        };
+      })
+      .filter(row => {
+        if (search && !String(row.unit).includes(search)) return false;
+        if (priorityFilter !== 'All' && row.priority !== priorityFilter) return false;
+        if (statusFilter !== 'All') {
+          const s = row.status?.toUpperCase();
+          if (s !== statusFilter) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        let cmp = 0;
+        if (sortField === 'unit')     cmp = a.unit - b.unit;
+        else if (sortField === 'cycle')    cmp = (a.cycle ?? 0) - (b.cycle ?? 0);
+        else if (sortField === 'rul')      cmp = (a.rul ?? 999) - (b.rul ?? 999);
+        else if (sortField === 'margin')   cmp = (a.margin ?? 999) - (b.margin ?? 999);
+        else if (sortField === 'priority') cmp = (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+  }, [engines, enginePredictionById, missionReadinessById, search, priorityFilter, statusFilter, sortField, sortDir]);
+
+  if (enginesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-5 h-5 text-textMuted animate-spin" />
+      </div>
+    );
+  }
+
+  if (enginesError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white rounded-2xl border border-danger/20">
+        <p className="text-base font-semibold text-textPrimary mb-1">Unable to load fleet data</p>
+        <p className="text-sm text-danger">{enginesError}</p>
+      </div>
+    );
+  }
+
+  if (engines.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white rounded-2xl border border-borderLight">
+        <p className="text-base font-semibold text-textPrimary mb-1">No fleet data available</p>
+        <p className="text-sm text-textSecondary">Upload a CSV to begin analysis.</p>
+      </div>
+    );
+  }
+
+  const loadedCount = Object.keys(missionReadinessById).length;
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <div className="space-y-4">
+
+      {/* Controls row */}
+      <div
+        className="flex flex-wrap items-center gap-3 p-3 rounded-2xl border border-borderLight"
+        style={{
+          background: 'rgba(255,255,255,0.7)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-textMuted" />
           <input
             type="text"
-            placeholder="Search aircraft..."
+            placeholder="Search unit..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-aviation-500 focus:border-transparent w-full max-w-sm placeholder:text-slate-400"
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 pr-3 py-1.5 bg-white border border-borderLight rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-borderSecondary w-44 placeholder:text-textMuted"
           />
         </div>
-        <div className="flex bg-white border border-slate-200 rounded-xl p-0.5">
-          {['All', 'Mission Ready', 'At Risk', 'Critical'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                filter === f ? 'bg-aviation-50 text-aviation-700' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {selected && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-xl font-bold text-navy-900">{selected.id}</h3>
-              <p className="text-sm text-slate-500">{selected.type}</p>
-            </div>
-            <button onClick={() => setSelected(null)} className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-              Close
-            </button>
-          </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span className="text-xs text-slate-500">Health Score</span>
-              </div>
-              <p className="text-2xl font-bold text-navy-900">{selected.health}%</p>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-4 h-4 text-aviation-500" />
-                <span className="text-xs text-slate-500">Failure Risk</span>
-              </div>
-              <p className="text-2xl font-bold text-navy-900">{selected.risk}</p>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Plane className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-500">Missions</span>
-              </div>
-              <p className="text-2xl font-bold text-navy-900">{selected.missions}</p>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-500">Flight Hours</span>
-              </div>
-              <p className="text-2xl font-bold text-navy-900">{selected.flightHours}</p>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Last Maintained</p>
-              <p className="text-sm font-medium text-slate-700">{selected.lastMaintained}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Next Inspection</p>
-              <p className="text-sm font-medium text-slate-700">{selected.nextInspection}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Status</p>
-              <StatusBadge status={selected.status} />
-            </div>
-          </div>
-        </div>
-      )}
+        {/* Filter toggle */}
+        <button
+          onClick={() => setShowFilters(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[12px] font-medium transition-colors ${
+            showFilters ? 'bg-textPrimary text-white border-textPrimary' : 'bg-white border-borderLight text-textSecondary hover:border-borderSecondary'
+          }`}
+        >
+          <Filter className="w-3 h-3" /> Filters
+        </button>
 
-      <div className="grid grid-cols-4 gap-5">
-        {filtered.map((asset) => (
+        {/* Priority filter */}
+        {showFilters && PRIORITY_FILTERS.map(f => (
           <button
-            key={asset.id}
-            onClick={() => setSelected(asset)}
-            className="text-left bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all group"
+            key={f}
+            onClick={() => setPriorityFilter(f)}
+            className={`px-3 py-1.5 rounded-full border text-[11px] font-medium transition-colors ${
+              priorityFilter === f
+                ? 'bg-textPrimary text-white border-textPrimary'
+                : 'bg-white text-textSecondary border-borderLight hover:border-borderSecondary'
+            }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-lg font-bold text-navy-900">{asset.id}</span>
-              <StatusBadge status={asset.status} />
-            </div>
-            <p className="text-xs text-slate-500 mb-4">{asset.type}</p>
-
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider">Health</span>
-                <span className="text-xs font-bold text-slate-600">{asset.health}%</span>
-              </div>
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${asset.health >= 90 ? 'bg-green-500' : asset.health >= 70 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${asset.health}%` }} />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 mt-3">
-              {asset.risk === 'Low' ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : asset.risk === 'Medium' ? <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> : <XCircle className="w-3.5 h-3.5 text-red-500" />}
-              <span className="text-[11px] text-slate-500">Failure Risk: {asset.risk}</span>
-            </div>
-
-            <div className="flex items-center gap-1 mt-2 text-[11px] text-aviation-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-              View Details <ChevronRight className="w-3 h-3" />
-            </div>
+            {f === 'All' ? 'All priorities' : f}
           </button>
         ))}
+
+        <span className="ml-auto text-[11px] text-textMuted">
+          {rows.length} of {engines.length} asset{engines.length !== 1 ? 's' : ''}
+          {loadedCount < engines.length && ` · ${loadedCount} analyzed`}
+        </span>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-borderLight overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-borderLight bg-subtle">
+                {[
+                  { label: 'Unit',    field: 'unit' },
+                  { label: 'Cycle',   field: 'cycle' },
+                  { label: 'RUL (cycles)', field: 'rul' },
+                  { label: 'Safety Margin', field: 'margin' },
+                  { label: 'Status',  field: null },
+                  { label: 'Priority', field: 'priority' },
+                  { label: '',        field: null },
+                ].map(({ label, field }) => (
+                  <th
+                    key={label}
+                    className={`px-4 py-3 text-[10px] font-semibold tracking-wider text-textMuted uppercase select-none ${field ? 'cursor-pointer hover:text-textPrimary' : ''}`}
+                    onClick={() => field && handleSort(field)}
+                  >
+                    {label}
+                    {field && <SortIcon field={field} sortField={sortField} sortDir={sortDir} />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-textMuted">
+                    No assets match the current filters
+                  </td>
+                </tr>
+              ) : rows.map(row => (
+                <tr key={row.unit} className="border-b border-borderLight hover:bg-subtle transition-colors last:border-0">
+                  <td className="px-4 py-3 text-sm font-bold text-textPrimary">
+                    Unit {row.unit}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-textSecondary">
+                    {row.cycle != null ? row.cycle : <span className="text-textMuted text-xs">Cycle unavailable</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-semibold text-textPrimary">
+                    {row.rul != null ? `${row.rul.toFixed(1)}` : <span className="text-textMuted text-xs">Unavailable</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {row.margin != null ? (
+                      <span className={`text-sm font-semibold ${
+                        row.margin < 0 ? 'text-danger' :
+                        row.margin < 15 ? 'text-warning' :
+                        'text-textPrimary'
+                      }`}>
+                        {row.margin >= 0 ? '+' : ''}{row.margin.toFixed(1)}
+                      </span>
+                    ) : <span className="text-textMuted text-xs">Unavailable</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <StatusDot status={row.status} />
+                      <span className="text-xs font-medium text-textPrimary">
+                        {row.status ?? <span className="text-textMuted">—</span>}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <PriorityBadge priority={row.priority} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {onNavigate && (
+                      <button
+                        onClick={() => onNavigate('Asset Health', row.unit)}
+                        className="text-[11px] text-textSecondary hover:text-textPrimary font-medium underline-offset-2 hover:underline transition-colors"
+                      >
+                        Inspect
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {loadedCount < engines.length && (
+          <div className="px-4 py-3 border-t border-borderLight bg-subtle">
+            <p className="text-[11px] text-textMuted flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading analysis for {engines.length - loadedCount} remaining asset{engines.length - loadedCount !== 1 ? 's' : ''}...
+            </p>
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

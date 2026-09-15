@@ -1,142 +1,119 @@
-import { useState } from 'react'
-import { Search, Wrench, Clock, AlertTriangle, CheckCircle2, Filter, ArrowRight, Calendar } from 'lucide-react'
+/**
+ * Maintenance.jsx
+ * ===============
+ * Action-oriented maintenance queue.
+ * Sorted HIGH → MEDIUM. Compact rows.
+ * No fake dates, technicians, work orders, costs.
+ * All data from backend ML pipeline.
+ */
+import { useContext, useEffect } from 'react';
+import { Wrench, Loader2, ChevronRight } from 'lucide-react';
+import { AppDataContext } from '../context/AppDataContext';
 
-const maintenanceItems = [
-  { id: 'M-001', asset: 'F-102', task: 'Engine inspection', reason: 'Scheduled 500hr service', action: 'Run full diagnostic suite', downtime: '4 hours', priority: 'Scheduled', status: 'Pending' },
-  { id: 'M-002', asset: 'F-118', task: 'Hydraulic pressure repair', reason: 'Pressure drop in system B', action: 'Replace hydraulic pump assembly', downtime: '6 hours', priority: 'Critical', status: 'In Progress' },
-  { id: 'M-003', asset: 'F-204', task: 'Battery system overhaul', reason: 'Degradation above threshold', action: 'Replace battery cells and BMS', downtime: '3 hours', priority: 'High', status: 'Pending' },
-  { id: 'M-004', asset: 'F-612', task: 'Emergency engine diagnostic', reason: 'Vibration anomaly detected', action: 'Inspect turbine blades and mounts', downtime: '8 hours', priority: 'Critical', status: 'Queued' },
-  { id: 'M-005', asset: 'F-307', task: 'Avionics software update', reason: 'Firmware patch required', action: 'Deploy verified update package', downtime: '2 hours', priority: 'Scheduled', status: 'Pending' },
-  { id: 'M-006', asset: 'F-410', task: 'Landing gear servicing', reason: 'Routine wear inspection', action: 'Inspect and lubricate gear mechanisms', downtime: '5 hours', priority: 'Medium', status: 'Pending' },
-  { id: 'M-007', asset: 'F-505', task: 'Fuel system cleaning', reason: 'Contamination detected', action: 'Flush fuel lines and replace filters', downtime: '3 hours', priority: 'Medium', status: 'Queued' },
-  { id: 'M-008', asset: 'F-720', task: 'Hydraulic fluid replacement', reason: 'Scheduled maintenance cycle', action: 'Drain and refill with spec fluid', downtime: '2 hours', priority: 'Scheduled', status: 'Pending' },
-]
-
-const priorityConfig = {
-  Critical: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
-  High: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
-  Medium: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  Scheduled: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-}
-
-export default function MaintenancePage() {
-  const [filter, setFilter] = useState('All')
-  const [search, setSearch] = useState('')
-  const [resolved, setResolved] = useState(new Set())
-
-  const filtered = maintenanceItems.filter((item) => {
-    const matchFilter = filter === 'All' || item.priority === filter
-    const matchSearch = item.asset.toLowerCase().includes(search.toLowerCase()) || item.task.toLowerCase().includes(search.toLowerCase())
-    return matchFilter && matchSearch && !resolved.has(item.id)
-  })
-
-  const activeCount = maintenanceItems.filter((i) => i.priority === 'Critical' && !resolved.has(i.id)).length
-  const highCount = maintenanceItems.filter((i) => i.priority === 'High' && !resolved.has(i.id)).length
+function PriorityBadge({ priority }) {
+  const cfg = {
+    HIGH:   { bg: 'bg-danger/10',   text: 'text-danger',   dot: 'bg-danger' },
+    MEDIUM: { bg: 'bg-warning/10',  text: 'text-warning',  dot: 'bg-warning' },
+    LOW:    { bg: 'bg-subtle',      text: 'text-textMuted', dot: 'bg-borderSecondary' },
+  }[priority] ?? { bg: 'bg-subtle', text: 'text-textMuted', dot: 'bg-borderSecondary' };
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search maintenance..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-aviation-500 focus:border-transparent w-full max-w-sm placeholder:text-slate-400"
-            />
-          </div>
-          <div className="flex bg-white border border-slate-200 rounded-xl p-0.5">
-            {['All', 'Critical', 'High', 'Medium', 'Scheduled'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  filter === f ? 'bg-aviation-50 text-aviation-700' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-xs font-bold text-red-700">{activeCount} Critical</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 rounded-lg">
-            <div className="w-2 h-2 rounded-full bg-orange-500" />
-            <span className="text-xs font-bold text-orange-700">{highCount} High</span>
-          </div>
-        </div>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${cfg.bg} ${cfg.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {priority}
+    </span>
+  );
+}
+
+export default function MaintenancePage({ engineContext }) {
+  const { enginesLoading, missionReadinessById, fetchEngineData } = useContext(AppDataContext);
+
+  useEffect(() => {
+    if (engineContext) {
+      fetchEngineData(engineContext);
+    }
+  }, [engineContext, fetchEngineData]);
+
+  if (enginesLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-5 h-5 text-textMuted animate-spin" />
+      </div>
+    );
+  }
+
+  if (!engineContext) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white rounded-2xl border border-borderLight">
+        <p className="text-base font-semibold text-textPrimary mb-1">No Engine Selected</p>
+      </div>
+    );
+  }
+
+  const r = missionReadinessById[engineContext];
+  if (!r) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-white rounded-2xl border border-borderLight">
+        <p className="text-sm text-textMuted">No maintenance data available for Unit {engineContext}</p>
+      </div>
+    );
+  }
+
+  const priority = r.combined_assessment?.maintenance_priority ?? 'LOW';
+  const rul = r.rul_assessment?.predicted_rul_cycles;
+  const margin = r.rul_assessment?.margin_of_safety;
+  const status = r.combined_assessment?.mission_readiness;
+  const rec = r.combined_assessment?.recommendation;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Wrench className="w-5 h-5 text-textMuted" />
+        <h2 className="text-2xl font-bold text-textPrimary">Maintenance Context</h2>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Asset</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Task</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Reason</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Recommended Action</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Downtime</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Priority</th>
-                <th className="px-6 py-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-slate-400">No maintenance items match your filters</td>
-                </tr>
-              ) : filtered.map((item) => {
-                const pc = priorityConfig[item.priority]
-                return (
-                  <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="text-sm font-semibold text-navy-900">{item.asset}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Wrench className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-sm text-slate-700">{item.task}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">{item.reason}</td>
-                    <td className="px-6 py-4 text-sm text-slate-600 max-w-[200px]">{item.action}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        {item.downtime}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${pc.bg} ${pc.text}`}>
-                        {item.priority}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-600">{item.status}</span>
-                        <button
-                          onClick={() => setResolved((prev) => new Set([...prev, item.id]))}
-                          className="p-1 hover:bg-green-50 rounded transition-colors"
-                          title="Resolve"
-                        >
-                          <CheckCircle2 className="w-4 h-4 text-slate-300 hover:text-green-500" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      <div className="bg-white rounded-2xl border border-borderLight p-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div className="flex items-center justify-between border-b border-borderLight/50 pb-4 mb-4">
+          <div>
+            <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-1">Unit</p>
+            <p className="text-lg font-bold text-textPrimary">Engine {engineContext}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-1">Priority</p>
+            <PriorityBadge priority={priority} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <p className="text-sm text-textSecondary mb-1">Predicted RUL</p>
+            <p className="text-xl font-bold text-textPrimary">
+              {rul != null ? `${rul.toFixed(1)} cycles` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-textSecondary mb-1">Margin of Safety</p>
+            <p className={`text-xl font-bold ${
+              margin == null ? 'text-textMuted' : margin < 0 ? 'text-danger' : margin < 15 ? 'text-warning' : 'text-textPrimary'
+            }`}>
+              {margin != null ? `${margin >= 0 ? '+' : ''}${margin.toFixed(1)} cycles` : '—'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-textSecondary mb-1">Status</p>
+            <p className="text-lg font-semibold text-textPrimary truncate">{status || '—'}</p>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-borderLight/50">
+          <p className="text-[11px] font-semibold text-textMuted uppercase tracking-wider mb-3">Backend Recommendation</p>
+          <div className="bg-subtle p-4 rounded-xl border border-borderLight/50">
+            <p className="text-sm text-textSecondary leading-relaxed">
+              {rec || 'No specific recommendation provided by the backend.'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

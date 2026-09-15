@@ -60,10 +60,6 @@ class Asset(db.Model):
         "SensorReading", back_populates="asset",
         cascade="all, delete-orphan", lazy="dynamic"
     )
-    service_records = db.relationship(
-        "ServiceRecord", back_populates="asset",
-        cascade="all, delete-orphan", lazy="dynamic"
-    )
     missions = db.relationship(
         "Mission", back_populates="asset",
         cascade="all, delete-orphan", lazy="dynamic"
@@ -86,6 +82,10 @@ class Asset(db.Model):
             "fleet_id":     self.fleet_id,
             "status":       self.status,
             "total_cycles": self.total_cycles,
+            # latest_cycle is an alias for total_cycles here — updated during ingestion.
+            # The frontend uses this as the display cycle value.
+            # The authoritative source is prediction.prediction_cycle from /analysis.
+            "latest_cycle": self.total_cycles if self.total_cycles > 0 else None,
             "created_at":   self.created_at.isoformat(),
             "updated_at":   self.updated_at.isoformat(),
         }

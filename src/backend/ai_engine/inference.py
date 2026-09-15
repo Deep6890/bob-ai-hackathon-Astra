@@ -124,7 +124,8 @@ class PredictiveMaintenanceCopilot:
                 "anomaly_score": avg_anomaly_score,
                 "trend": float(slope),
                 "persistence": persistence,
-                "norm_dev": float(norm_dev)
+                "norm_dev": float(norm_dev),
+                "degradation_direction": hist_trend
             }
             
         return results

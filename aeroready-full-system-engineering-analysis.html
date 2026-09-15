@@ -1,0 +1,304 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AeroReady — System Analysis</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.6; background: #ffffff; color: #1f2328; max-width: 760px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #57606a; font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 15px; font-weight: 700; color: #1f2328; margin-bottom: 12px; margin-top: 32px; padding-bottom: 6px; border-bottom: 1.5px solid #e5e7eb; }
+  h3 { font-size: 13px; font-weight: 700; color: #1f2328; margin-bottom: 8px; margin-top: 16px; }
+  p { margin-bottom: 10px; color: #1f2328; font-size: 13.5px; }
+  ul, ol { padding-left: 18px; margin-bottom: 12px; }
+  li { margin-bottom: 5px; font-size: 13.5px; }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 4px; padding: 1px 5px; color: #1f2328; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .card { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; }
+  .card h3 { margin-top: 0; color: #3b82d4; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin: 2px; }
+  .tag-green  { background: #d1fae5; color: #065f46; }
+  .tag-yellow { background: #fef3c7; color: #92400e; }
+  .tag-red    { background: #fee2e2; color: #991b1b; }
+  .tag-blue   { background: #dbeafe; color: #1e40af; }
+  .tag-gray   { background: #f3f4f6; color: #374151; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12.5px; }
+  th { background: #f7f8fa; border: 1px solid #e5e7eb; padding: 7px 10px; text-align: left; font-weight: 600; color: #57606a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { border: 1px solid #e5e7eb; padding: 7px 10px; vertical-align: top; }
+  .flow-box { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 18px; font-size: 13px; line-height: 2; margin-bottom: 12px; }
+  .flow-box .arrow { color: #3b82d4; font-weight: 700; }
+  .alert-red    { background: #fff1f2; border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; font-size: 13px; }
+  .alert-yellow { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; font-size: 13px; }
+  .alert-blue   { background: #eff6ff; border-left: 3px solid #3b82d4; padding: 10px 14px; border-radius: 0 6px 6px 0; margin-bottom: 10px; font-size: 13px; }
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #57606a; }
+</style>
+</head>
+<body>
+
+<h1>AeroReady — System Engineering Analysis</h1>
+<p class="subtitle">IBM BoB Hackathon · Senior Engineering Review · Full codebase investigation</p>
+
+
+<h2>1. Current System Architecture</h2>
+<p>The project is a <strong>predictive maintenance dashboard</strong> for turbofan engines (NASA C-MAPSS data). It has three layers:</p>
+
+<div class="grid2">
+  <div class="card">
+    <h3>Frontend</h3>
+    <p>React 18 + Vite + TailwindCSS. SPA with client-side routing via state. <code>AppDataContext</code> is the single global data store — all API calls are centralised there. <code>api.js</code> validates every response before it enters state. <code>Recharts</code> for charts, <code>lucide-react</code> for icons.</p>
+  </div>
+  <div class="card">
+    <h3>Backend</h3>
+    <p>Flask 3 + SQLAlchemy 2 + SQLite (<code>app.db</code>). Clean layered architecture: <strong>Routes → Controllers → Services → Repositories → Models</strong>. Flask-Migrate for schema migrations. Flask-CORS enabled globally. Served by Waitress in production.</p>
+  </div>
+  <div class="card">
+    <h3>ML Engine</h3>
+    <p>Two pre-trained artifacts loaded at startup: <strong>LSTM</strong> (<code>best_rul_lstm.pth</code>) for RUL regression, and <strong>Isolation Forest</strong> (<code>multivariate_iforest.pkl</code>) for sensor health. Both run via the <code>PredictiveMaintenanceCopilot</code> class. <em>No training at runtime</em> — inference only.</p>
+  </div>
+  <div class="card">
+    <h3>Database (SQLite)</h3>
+    <p>6 tables: <code>assets</code>, <code>sensor_readings</code>, <code>predictions</code>, <code>sensor_analysis</code>, <code>missions</code>, <code>readiness_results</code>. FK cascades are defined correctly. A composite index exists on (asset_id, time_cycles). SQLite file lives in <code>src/backend/app.db</code>.</p>
+  </div>
+</div>
+
+
+<h2>2. Frontend → Backend API Flow</h2>
+<div class="flow-box">
+  User action or page mount
+  <span class="arrow"> → </span> <code>AppDataContext.fetchXxx(unitNumber)</code>
+  <span class="arrow"> → </span> <code>api.js</code> (fetch + validate)
+  <span class="arrow"> → </span> Flask blueprint route
+  <span class="arrow"> → </span> Controller (validates input)
+  <span class="arrow"> → </span> Repository / Service
+  <span class="arrow"> → </span> JSON response (<code>success_response</code>)
+  <span class="arrow"> → </span> React state update → UI re-render
+</div>
+
+<table>
+  <tr><th>Frontend call</th><th>Backend endpoint</th><th>Purpose</th></tr>
+  <tr><td><code>api.getEngines()</code></td><td><code>GET /api/v1/engines/</code></td><td>Seed engine list at startup</td></tr>
+  <tr><td><code>api.getDatasetInfo()</code></td><td><code>GET /api/v1/data/dataset-info</code></td><td>Header dataset pill</td></tr>
+  <tr><td><code>api.uploadData(file)</code></td><td><code>POST /api/v1/data/upload</code></td><td>CSV ingestion → background analysis</td></tr>
+  <tr><td><code>api.resetDataset()</code></td><td><code>DELETE /api/v1/data/reset</code></td><td>User-confirmed full data wipe</td></tr>
+  <tr><td><code>api.getEngineAnalysis(id)</code></td><td><code>GET /api/v1/engines/{id}/analysis</code></td><td>Latest Prediction row for an engine</td></tr>
+  <tr><td><code>api.getMissionReadiness(id, 30)</code></td><td><code>POST /api/v1/mission/readiness</code></td><td>Full ML evaluation + readiness decision</td></tr>
+  <tr><td><code>api.getEngineSensors(id)</code></td><td><code>GET /api/v1/engines/{id}/sensors</code></td><td>Per-sensor health analysis (14 sensors)</td></tr>
+  <tr><td><code>api.getSensorHistory(id, 50)</code></td><td><code>GET /api/v1/engines/{id}/sensors/history</code></td><td>Time-series history for chart drawer</td></tr>
+  <tr><td><code>api.getModelInfo()</code></td><td><code>GET /api/v1/system/model-info</code></td><td>Model metrics page (static)</td></tr>
+</table>
+
+<p><strong>Note:</strong> <code>api.js</code> comment says "all engine endpoints accept unit_number as the URL param" but the comment is slightly misleading — <code>EngineRepository.get_engine_by_id_or_404</code> filters by <code>unit_number</code> (correct). The <code>success_response</code> helper simply calls <code>jsonify(data)</code> without a wrapper — it does <em>not</em> wrap in <code>{ data: ... }</code>. The unwrapping logic in <code>api.js</code> (<code>json.data !== undefined ? json.data : json</code>) is a no-op but harmless.</p>
+
+
+<h2>3. Backend → ML Model Flow</h2>
+<div class="flow-box">
+  <code>PipelineService.analyze_engine(engine_id)</code>
+  <span class="arrow"> → </span> <code>SensorRepository</code> (load all readings for engine)
+  <span class="arrow"> → </span> Build pandas DataFrame (14 sensor columns)
+  <span class="arrow"> → </span> <code>PipelineHandler.analyze_engine(df, engine_id)</code>
+  <span class="arrow"> → </span> <code>ModelHandler.get_copilot()</code> (singleton)
+  <span class="arrow"> → </span> <code>PredictiveMaintenanceCopilot.analyze_asset(id, df)</code>
+  <span class="arrow"> → </span> <code>_predict_rul()</code> [LSTM] + <code>_assess_current_health()</code> [IsolationForest]
+  <span class="arrow"> → </span> Returns (rul, sensor_health_dict, latest_cycle)
+  <span class="arrow"> → </span> <code>AnalysisRepository.save_analysis()</code> → DB persist
+</div>
+
+<p>For mission readiness: after <code>analyze_engine</code>, <code>PipelineService.evaluate_mission_readiness</code> computes margin, risk flag, readiness score, and recommendation using static formulas on <code>ReadinessResult</code> — no second ML call.</p>
+
+
+<h2>4. ML Input / Output</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>LSTM — RUL Predictor</h3>
+    <ul>
+      <li><strong>Input:</strong> 30-cycle sliding window × 14 smoothed sensor features (<code>sensor_2,3,4,7,8,9,11,12,13,14,15,17,20,21</code>)</li>
+      <li>Pads with zeros if &lt;30 cycles available</li>
+      <li><strong>Architecture:</strong> 2-layer LSTM (hidden=64), FC: 64→32→ReLU→Dropout→1</li>
+      <li><strong>Output:</strong> Single float — RUL in cycles (clipped to ≥0)</li>
+      <li><strong>Test R²:</strong> 0.865, MAE ~11.3 cycles</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Isolation Forest — Health Monitor</h3>
+    <ul>
+      <li><strong>Input:</strong> Last 5-cycle window × 14 scaled sensor features</li>
+      <li><strong>Reference:</strong> Healthy baseline (RUL &gt; 100 in training)</li>
+      <li><strong>Output per sensor:</strong> state (NORMAL / DEGRADING / ABNORMAL / UNKNOWN), anomaly_score, persistence, slope, normalized_deviation</li>
+      <li>State logic: persistence ≥ 60% + strong deviation (&gt;3σ) + trend alignment</li>
+    </ul>
+  </div>
+</div>
+
+<div class="alert-yellow">
+  <strong>Bug:</strong> In <code>pipeline_service.py</code> line 47–54, <code>sensor_9_smooth</code> and <code>sensor_14_smooth</code> are hardcoded to <code>0.0</code> ("Not in schema, fallback to 0"), even though both columns exist in the <code>SensorReading</code> model and are populated during ingestion. This introduces silent bias into every LSTM prediction. The model was trained on real sensor_9 and sensor_14 values.
+</div>
+
+
+<h2>5. Database / Data Storage</h2>
+<table>
+  <tr><th>Table</th><th>Purpose</th><th>Key fields</th></tr>
+  <tr><td><code>assets</code></td><td>One row per engine</td><td>unit_number, status, total_cycles</td></tr>
+  <tr><td><code>sensor_readings</code></td><td>Per-cycle sensor snapshot (raw ingested data)</td><td>asset_id, time_cycles, 14 sensor cols, rul, rul_clipped</td></tr>
+  <tr><td><code>predictions</code></td><td>LSTM output per analysis run</td><td>rul_predicted, rul_clipped, prediction_cycle, predicted_failure_TTE</td></tr>
+  <tr><td><code>sensor_analysis</code></td><td>Per-sensor health evidence linked to a prediction</td><td>sensor_name, state, anomaly_score, persistence, slope, normalized_deviation</td></tr>
+  <tr><td><code>missions</code></td><td>Planned sortie — one per asset (upserted)</td><td>mission_duration (default 30), mission_name</td></tr>
+  <tr><td><code>readiness_results</code></td><td>Go/no-go decision linked to prediction + mission</td><td>risk_flag (SAFE/MARGINAL/CRITICAL), margin_of_safety, recommendation</td></tr>
+</table>
+<p>Storage is SQLite (file-based). Duplicate ingestion is protected — same CSV uploaded again produces 0 new readings and no new analysis. Cascade deletes are defined but SQLite FK enforcement is off by default (manual delete order is used instead — correct).</p>
+
+
+<h2>6. Features That Are Actually Working</h2>
+<ul>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>CSV Upload Pipeline</strong> — accepts raw CMAPSS (space-separated) and smooth-column CSVs; auto-maps headers; idempotent deduplication; background analysis thread</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>LSTM RUL Inference</strong> — model loads at startup (<code>best_rul_lstm.pth</code>), predicts from sensor sequences, persisted to DB</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Isolation Forest Health Assessment</strong> — 14-sensor multivariate anomaly detection, 5-cycle temporal persistence, NORMAL/DEGRADING/ABNORMAL/UNKNOWN classification</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Mission Readiness Evaluation</strong> — POST /mission/readiness computes margin, risk flag (SAFE/MARGINAL/CRITICAL), readiness score, recommendation; persisted to DB</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Dashboard</strong> — KPI strip (total/ready/warning/high), engine card grid sorted by priority, RUL distribution bar chart, fleet sensor health bars — all from real backend data</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Fleet Table</strong> (Fleet page) — searchable, sortable, filterable by priority/status; lazy-loads per-engine data</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Asset Health Page</strong> — 14-sensor table with severity ranking; per-sensor inspection drawer with history line chart; evidence text</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Sensor History Chart</strong> — fetches last 50 cycles per engine; rendered in drawer</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Predictive Insights</strong> (asset level) — RUL, margin of safety, maintenance priority KPIs; sensor health distribution bars</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Maintenance Page</strong> — shows readiness context and recommendation text per engine</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Alerts Page</strong> — builds real alerts from backend data (HIGH for abnormal sensors, MEDIUM for degrading), deduped per session</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Reports Page</strong> — fleet summary, dataset info banner, RUL distribution chart, full fleet analysis table</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Model &amp; Analysis Page</strong> — shows LSTM and IsolationForest details, validation/test metrics from real offline evaluation, loaded from API</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>Dataset Reset</strong> — user-confirmed wipe of all data, never called automatically</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>API Validation Layer</strong> — every response validated in <code>validation.js</code> before entering React state; throws on schema violation</li>
+  <li><span class="tag tag-green">✓ WORKING</span> <strong>In-flight request deduplication</strong> — <code>inFlight</code> ref in AppDataContext prevents concurrent duplicate API calls</li>
+</ul>
+
+
+<h2>7. Features That Are Only Partially Implemented</h2>
+<ul>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>AI Copilot Page</strong> — renders structured analysis from the ML pipeline correctly, but is labeled "AI Copilot" and "Bot" in the sidebar. There is NO LLM, no conversational interface, and no IBM watsonx integration. It is a read-only structured display panel, not a copilot.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>Fleet Table "Inspect" button</strong> — calls <code>onNavigate('Asset Health', row.unit)</code> but <code>Fleet.jsx</code> receives no <code>onNavigate</code> prop from <code>App.jsx</code> (the prop is never passed). The button renders but does nothing.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>Sidebar "Predictive Insights" nav item</strong> — exists in <code>assetNavItems</code> but the <code>App.jsx</code> switch block has no case for "Predictive Insights"; it falls to <code>default</code> which renders <code>PredictiveInsights</code>, so it accidentally works. But it was clearly intended to route to <code>PredictiveInsights</code> and there's no explicit route — just a fallthrough.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>Upload progress feedback</strong> — after upload, a hardcoded 3-second delay is used to wait for background analysis, then refetches. No real backend progress polling exists — analysis could take longer for 100 engines.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>Mission system</strong> — Mission rows are created/updated by the readiness endpoint as mock data (<code>SORTIE-{engine_id}</code>). There is no UI to create, name, schedule, or manage missions independently. All missions have the same hardcoded 30-cycle duration from the frontend constant.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>Fleet page "Inspect" navigation</strong> — <code>FleetPage</code> receives an optional <code>onNavigate</code> prop, but in <code>App.jsx</code> the Fleet page is rendered as <code>&lt;FleetPage /&gt;</code> with no prop, so the Inspect column always shows nothing functional.</li>
+  <li><span class="tag tag-yellow">⚠ PARTIAL</span> <strong>submission.yaml</strong> — completely empty. All required hackathon metadata fields (team name, track, problem statement, solution summary, key features, tech stack) are blank placeholders.</li>
+</ul>
+
+
+<h2>8. Missing Integration Points</h2>
+<ul>
+  <li><strong>No real LLM / IBM watsonx integration</strong> — The "AI Copilot" is pure structured data display. No natural language query, no explanation generation, no LLM anywhere.</li>
+  <li><strong>No backend progress endpoint for CSV processing</strong> — frontend polls with a fixed 3s sleep after upload; no <code>GET /api/v1/data/status</code> exists.</li>
+  <li><strong>Fleet → Asset navigation is broken</strong> — <code>FleetPage</code> calls <code>onNavigate('Asset Health', row.unit)</code> but <code>App.jsx</code> passes no <code>onNavigate</code> or <code>onSelectEngine</code> to the Fleet page render. A user cannot navigate from Fleet table to a specific engine.</li>
+  <li><strong>No error boundary in React</strong> — a validation throw in <code>api.js</code> or a render error will crash the entire app without a recovery UI.</li>
+  <li><strong>No health check used by frontend</strong> — <code>GET /api/v1/health</code> and <code>GET /api/v1/system/status</code> exist but the frontend never polls them. The "System Online" dot in the header is a static hardcoded green dot.</li>
+  <li><strong>No authentication / authorization</strong> — any client can reset the dataset, upload any file, or read any engine data.</li>
+  <li><strong>No DB migrations applied automatically at startup</strong> — <code>flask db upgrade</code> must be run manually; no call in <code>run.py</code> or container entrypoint.</li>
+</ul>
+
+
+<h2>9. Bugs and Technical Risks</h2>
+
+<div class="alert-red">
+  <strong>BUG (HIGH) — sensor_9 and sensor_14 zeroed in pipeline_service.py</strong><br />
+  Lines 47 and 51 in <code>pipeline_service.py</code> hardcode <code>sensor_9_smooth: 0.0</code> and <code>sensor_14_smooth: 0.0</code> with the comment "Not in schema, fallback to 0". Both columns exist in the <code>SensorReading</code> model and are populated during ingestion. This corrupts <em>every single LSTM prediction</em> silently. The fix is trivial: <code>r.sensor_9_smooth</code> and <code>r.sensor_14_smooth</code>.
+</div>
+
+<div class="alert-red">
+  <strong>BUG (HIGH) — Fleet Inspect button is broken</strong><br />
+  <code>Fleet.jsx</code> calls <code>onNavigate('Asset Health', row.unit)</code> on click, but <code>App.jsx</code> renders <code>&lt;FleetPage /&gt;</code> with no <code>onNavigate</code> prop. The button is a no-op for all 100 engines.
+</div>
+
+<div class="alert-yellow">
+  <strong>RISK — success_response does not wrap data</strong><br />
+  <code>responses.py</code> does <code>return jsonify(data)</code> — no <code>{ "data": ... }</code> wrapper. <code>api.js</code> has unwrap logic (<code>json.data !== undefined ? json.data : json</code>) that silently falls through correctly. But if a future route accidentally returns a dict with a <code>"data"</code> key, the unwrap will strip the outer shell incorrectly. Not currently broken, but a silent footgun.
+</div>
+
+<div class="alert-yellow">
+  <strong>RISK — Background analysis thread has no completion signal</strong><br />
+  The frontend waits a hardcoded 3 seconds after CSV upload then refetches engines. For a 100-engine fleet, background analysis (100 ML inference calls) may easily take 10–30+ seconds. The UI will show stale "Unavailable" data until the user manually refreshes.
+</div>
+
+<div class="alert-yellow">
+  <strong>RISK — ReadinessResult has unique constraint on mission_id but per-analysis predictions accumulate</strong><br />
+  Each CSV upload creates a new <code>Prediction</code> row per engine (no limit). After many uploads, <code>get_latest_prediction</code> picks the newest one correctly, but <code>ReadinessResult</code> is upserted by <code>mission_id</code>. Since only one <code>Mission</code> exists per asset, this works — but is fragile if mission logic changes.
+</div>
+
+<div class="alert-yellow">
+  <strong>RISK — Missing 500 error handler</strong><br />
+  <code>register_error_handlers</code> handles <code>APIError</code> and 404, but generic Python exceptions from ML inference (e.g. CUDA OOM, missing .pth file) will surface as raw Flask 500 responses with Python tracebacks in the body.
+</div>
+
+<div class="alert-yellow">
+  <strong>RISK — SensorAnalysis backref conflict</strong><br />
+  <code>sensor_analysis.py</code> uses <code>db.backref("sensor_analyses", ...)</code> on Prediction, while <code>analysis_repository.py</code> uses a manual <code>SensorAnalysis.query.filter_by(prediction_id=pred.id)</code>. The backref relationship is declared with <code>lazy="dynamic"</code> and <code>cascade="all, delete-orphan"</code> — this <em>duplicates</em> the cascade already declared on <code>Prediction</code>'s <code>readiness_results</code> relationship. Not currently broken, but confusing and fragile.
+</div>
+
+
+<h2>10. What Must Be Completed Before Submission</h2>
+
+<table>
+  <tr><th>Priority</th><th>Item</th><th>Effort</th></tr>
+  <tr><td><span class="tag tag-red">P0</span></td><td>Fix <code>sensor_9_smooth</code> and <code>sensor_14_smooth</code> zeroing bug in <code>pipeline_service.py</code> — use <code>r.sensor_9_smooth</code> and <code>r.sensor_14_smooth</code></td><td>5 min</td></tr>
+  <tr><td><span class="tag tag-red">P0</span></td><td>Fill in <code>submission.yaml</code> — team name, track, lead, members, title, problem statement, solution summary, key features, tech stack</td><td>30 min</td></tr>
+  <tr><td><span class="tag tag-red">P0</span></td><td>Fix Fleet → Asset navigation — pass <code>onSelectEngine</code> (or a proper nav callback) to <code>FleetPage</code> in <code>App.jsx</code> so "Inspect" rows work</td><td>15 min</td></tr>
+  <tr><td><span class="tag tag-yellow">P1</span></td><td>Add a real "AI Copilot" feature using IBM Bob (see section 11) — or rebrand the existing page honestly to remove the "AI Copilot" / "Bot" misleading framing</td><td>2–8 hrs</td></tr>
+  <tr><td><span class="tag tag-yellow">P1</span></td><td>Add React error boundary at the root — prevents full app crash on any validation or render error</td><td>30 min</td></tr>
+  <tr><td><span class="tag tag-yellow">P1</span></td><td>Make the "System Online" dot real — poll <code>GET /api/v1/system/status</code> once on mount and update the dot accordingly</td><td>1 hr</td></tr>
+  <tr><td><span class="tag tag-yellow">P1</span></td><td>Add a backend polling endpoint or WebSocket progress update for CSV analysis so the frontend doesn't have a blind 3-second wait</td><td>2–3 hrs</td></tr>
+  <tr><td><span class="tag tag-gray">P2</span></td><td>Add generic 500 error handler in <code>register_error_handlers</code> to prevent Python tracebacks leaking to the API consumer</td><td>20 min</td></tr>
+  <tr><td><span class="tag tag-gray">P2</span></td><td>Record demo video and fill in <code>demo/demo-video-link.txt</code> and <code>demo/live-demo-url.txt</code></td><td>varies</td></tr>
+  <tr><td><span class="tag tag-gray">P2</span></td><td>Add screenshots to <code>demo/screenshots/</code></td><td>30 min</td></tr>
+</table>
+
+
+<h2>11. How IBM Bob Can Be Meaningfully Integrated</h2>
+
+<p>The system has rich, real, structured ML outputs that are <em>perfect</em> fodder for an LLM layer. Here are the most impactful integration points, ordered by value and feasibility:</p>
+
+<div class="alert-blue">
+  <strong>Option A (Highest Value) — Natural Language Fleet Q&amp;A via IBM Bob</strong><br />
+  Replace the current "AI Copilot" page with a real conversational interface powered by IBM Bob. The context payload to Bob would be the structured JSON already returned by <code>POST /mission/readiness</code> and <code>GET /engines/{id}/sensors</code> for the selected engine. Bob can explain sensor anomalies, justify the RUL prediction, suggest maintenance actions, and answer "why is this engine grounded?" in natural language. This is achievable in a few hours with the Bob API + a backend proxy endpoint.
+</div>
+
+<div class="alert-blue">
+  <strong>Option B — Automatic Narrative Report Generation</strong><br />
+  Add a "Generate Report" button to the Reports page. On click, the frontend sends the full fleet summary (all <code>missionReadinessById</code> data) to a new backend endpoint <code>POST /api/v1/reports/narrative</code>. The backend formats a structured prompt and calls IBM Bob to generate a fleet-wide health narrative (paragraph form). The result is displayed as a text report that can be copy-pasted for briefings.
+</div>
+
+<div class="alert-blue">
+  <strong>Option C — Sensor Anomaly Explanation</strong><br />
+  In the <code>SensorDrawer</code> component (Asset Health page), add an "Explain with AI" button. Clicking it sends the sensor's state, persistence, normalized_deviation, slope, and degradation_direction to a backend endpoint that queries IBM Bob. Bob returns a 2–3 sentence plain-English explanation of what the anomaly means in the context of turbofan degradation. This is a highly targeted, high-quality UX improvement that directly uses the sensor evidence the ML engine produces.
+</div>
+
+<div class="alert-blue">
+  <strong>Option D — Maintenance Priority Justification</strong><br />
+  On the Maintenance page, an "AI Justification" panel uses IBM Bob to explain <em>why</em> the ML pipeline assigned HIGH/MEDIUM/LOW priority, given the sensor states and RUL margin. This addresses the black-box concern that is central to ML in safety-critical domains — a key differentiator for hackathon judges.
+</div>
+
+<h3>Recommended Integration Architecture</h3>
+<div class="flow-box">
+  Frontend "Explain" button
+  <span class="arrow"> → </span> <code>POST /api/v1/copilot/explain</code> (new Flask route)
+  <span class="arrow"> → </span> Backend builds structured context from DB (sensor states, RUL, readiness)
+  <span class="arrow"> → </span> Backend calls IBM Bob API with prompt + context
+  <span class="arrow"> → </span> Returns natural language text to frontend
+  <span class="arrow"> → </span> Displayed in a clean panel (streaming optional)
+</div>
+
+<p>Key design principle: IBM Bob should receive <em>structured, pre-computed ML evidence</em> as context — not raw sensor numbers. The ML pipeline already does the hard work; Bob provides the natural language explanation layer on top. This architecture is honest, grounded, and avoids hallucination of technical values.</p>
+
+<hr class="divider" />
+<table>
+  <tr>
+    <th>Layer</th><th>Status</th><th>Quality</th>
+  </tr>
+  <tr><td>Backend architecture</td><td><span class="tag tag-green">Complete</span></td><td>Clean, well-layered, solid FK design</td></tr>
+  <tr><td>ML inference pipeline</td><td><span class="tag tag-yellow">Minor bug</span></td><td>Strong models; sensor_9/14 zeroing bug degrades predictions</td></tr>
+  <tr><td>Frontend data layer</td><td><span class="tag tag-green">Complete</span></td><td>Excellent — context, caching, validation, dedup all correct</td></tr>
+  <tr><td>UI pages</td><td><span class="tag tag-yellow">Mostly complete</span></td><td>All data is real; Fleet Inspect navigation broken</td></tr>
+  <tr><td>IBM Bob / LLM integration</td><td><span class="tag tag-red">Missing</span></td><td>Not implemented; "AI Copilot" is a misnomer</td></tr>
+  <tr><td>Hackathon submission metadata</td><td><span class="tag tag-red">Empty</span></td><td>submission.yaml has zero real values</td></tr>
+</table>
+
+<footer>Made with IBM Bob</footer>
+</body>
+</html>
