@@ -1,14 +1,1 @@
-DEMO VIDEO TO BE RECORDED AND ADDED HERE BEFORE SUBMISSION.
-
-Record a 3–5 minute video showing:
-1. The fleet dashboard with real engine data loaded (show KPI strip + engine cards)
-2. Clicking into an engine — show Sensor Health page with drawer inspection
-3. The Mission Readiness Copilot — type a question and show the answer with evidence panel
-4. IBM Bob MCP tools — ask Bob "Which engines are high priority?" and show the tool call + result
-
-Upload to YouTube (unlisted), Loom, or IBM Box and replace this line with the URL.
-
-Accepted platforms:
-  - YouTube (public or unlisted): https://youtu.be/...
-  - Loom: https://www.loom.com/share/...
-  - IBM Box: https://ibm.box.com/s/...
+https://drive.google.com/file/d/1nwS9CDactFkPhkQpe43xVMQSSiHViHHO/view?usp=drivesdk
