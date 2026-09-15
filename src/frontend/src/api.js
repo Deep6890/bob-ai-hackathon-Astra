@@ -21,7 +21,9 @@ import {
   validateDatasetInfo,
 } from './utils/validation';
 
-const BASE_URL = 'http://127.0.0.1:5000/api/v1';
+const BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
+  ? import.meta.env.VITE_API_URL
+  : 'http://127.0.0.1:5000/api/v1';
 
 /**
  * Internal fetch helper. Throws a descriptive error on non-OK responses.
@@ -124,5 +126,19 @@ export const api = {
       body: JSON.stringify({ engine_id: id, mission_duration: missionDuration }),
     });
     return validateMissionReadiness(raw);
+  },
+
+  /**
+   * POST /api/v1/copilot/query
+   * body: { engine_id?: number, question: string }
+   * Returns { answer, evidence, engine_id }
+   */
+  async getCopilotResponse(engineId, question) {
+    const raw = await apiFetch('/copilot/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ engine_id: engineId, question }),
+    });
+    return raw; // No strict schema validation — answer is free-form text
   },
 };

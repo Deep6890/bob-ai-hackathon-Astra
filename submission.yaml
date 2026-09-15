@@ -1,69 +1,72 @@
-# =============================================================================
-# HACKATHON SUBMISSION METADATA
-# =============================================================================
-# Instructions:
-#   - Fill in ALL required fields (marked with # REQUIRED)
-#   - Optional fields can be left as empty strings ""
-#   - Do NOT rename this file — the evaluation pipeline reads it by name
-#   - Use double quotes around all string values
-# =============================================================================
-
 team:
-  name: ""                             # REQUIRED — e.g., "Orion Squad"
-  track: ""                            # REQUIRED — one of: AI | DevOps | Sustainability | Open
+  name: "Team Astra"
+  track: "AI"
   lead:
-    name: ""                           # REQUIRED — e.g., "Alice Chen"
-    email: ""                          # REQUIRED — e.g., "alice.chen@ibm.com"
+    name: "[Lead Name — replace before submission]"
+    email: "[lead@email.com — replace before submission]"
   members:
-    - name: ""                         # REQUIRED — Team member 1
-      email: ""
-    - name: ""                         # Add more members by copying the two lines above
-      email: ""
-    - name: ""
-      email: ""
+    - name: "[Member 1 Name]"
+      email: "[member1@email.com]"
+    - name: "[Member 2 Name]"
+      email: "[member2@email.com]"
+    - name: "[Member 3 Name]"
+      email: "[member3@email.com]"
+    - name: "[Member 4 Name]"
+      email: "[member4@email.com]"
 
 submission:
-  title: ""                            # REQUIRED — Project display name, e.g., "SmartOps Dashboard"
+  title: "AeroReady — Mission Readiness & Predictive Maintenance Platform"
 
-  problem_statement: >                 # REQUIRED — 1-3 sentences. What problem? Who has it?
-    Replace this text with a concise description of the real-world problem
-    your project addresses and who experiences it.
+  problem_statement: >
+    Unplanned aircraft-on-ground (AOG) events cost fleet operators millions per day.
+    Maintenance crews rely on fixed time-based schedules that either waste resources or
+    miss genuine degradation. There is no fast, data-driven way to ask "Is this engine
+    safe for today's mission?" and receive a justified, sensor-evidence-backed answer.
 
-  solution_summary: >                  # REQUIRED — 1-3 sentences. What did you build?
-    Replace this text with a clear description of your solution
-    and how it addresses the problem above.
+  solution_summary: >
+    AeroReady ingests raw turbofan sensor telemetry, runs a dual-model ML pipeline
+    (LSTM for RUL prediction + Isolation Forest for per-sensor anomaly detection),
+    and produces a go/no-go mission readiness decision with an explicit margin of safety.
+    A conversational Mission Readiness Copilot accessible via web UI and IBM Bob MCP
+    tools lets operators ask natural-language questions and receive answers grounded
+    exclusively in real ML pipeline output.
 
-  key_features:                        # REQUIRED — List 3 to 5 specific features you implemented
-    - ""                               # e.g., "Real-time pipeline anomaly detection using watsonx.ai"
-    - ""
-    - ""
-    - ""                               # optional 4th
-    - ""                               # optional 5th
+  key_features:
+    - "LSTM RUL prediction (MAE 10.05 cycles, R² 0.897) trained on NASA C-MAPSS turbofan data with 5-fold Group K-Fold cross-validation"
+    - "Isolation Forest sensor health monitoring classifying 14 sensors as NORMAL, DEGRADING, ABNORMAL, or UNKNOWN against a healthy-engine baseline"
+    - "Mission readiness engine computing margin-of-safety = RUL minus mission_duration, issuing SAFE/MARGINAL/CRITICAL go/no-go decisions"
+    - "Evidence-grounded Mission Readiness Copilot answering natural-language questions about RUL, sensor health, and maintenance priority with no LLM"
+    - "IBM Bob MCP integration exposing 5 tools (get_fleet_summary, get_engine_readiness, get_sensor_health, list_high_priority_engines, ask_copilot)"
 
   tech_stack:
-    languages: []                      # REQUIRED — e.g., ["Python", "TypeScript"]
-    frameworks: []                     # e.g., ["FastAPI", "React"]
-    ibm_technologies: []               # e.g., ["watsonx.ai", "IBM Bob", "IBM Cloud Functions"]
-    databases: []                      # e.g., ["PostgreSQL", "Redis"]
-    other: []                          # e.g., ["Docker", "GitHub Actions", "Slack API"]
+    languages: ["Python 3.11", "JavaScript ES2022"]
+    frameworks: ["Flask 3.0", "React 18", "Vite", "TailwindCSS", "SQLAlchemy", "FastMCP"]
+    ibm_technologies: ["IBM Bob (MCP integration via FastMCP)"]
+    databases: ["SQLite (dev)", "PostgreSQL (production-compatible via DATABASE_URL)"]
+    other: ["PyTorch 2.x", "scikit-learn", "NASA C-MAPSS dataset", "Recharts", "Lucide React", "Waitress", "Flask-Migrate"]
 
-  what_we_are_most_proud_of: >         # Optional but recommended — guides judges to your best work
-    Replace with what aspect of the submission you consider strongest
-    and want judges to pay special attention to.
+  what_we_are_most_proud_of: >
+    The end-to-end rigour of the ML pipeline: a rigorously validated LSTM
+    (5-fold Group K-Fold, MAE 10.05, R² 0.897) combined with a baseline-grounded
+    Isolation Forest that classifies 14 turbofan sensors against a healthy reference
+    population, feeding a mission-window readiness engine that produces actionable
+    go/no-go decisions with explicit safety margins. The entire system is surfaced
+    through a clean React dashboard, a deterministic evidence-grounded Copilot,
+    and IBM Bob MCP tools that make the complete fleet interrogable in natural language
+    without any paid API dependency.
 
-  known_limitations: >                 # Optional but recommended — be honest about gaps
-    Replace with any known limitations, incomplete features,
-    or shortcuts taken due to time constraints.
+  known_limitations: >
+    Models trained on NASA C-MAPSS FD001 only (single operating condition, single fault
+    mode). Per-sensor anomaly scores are multivariate ensemble scores, not independent
+    per-sensor scores. The Copilot uses deterministic NL generation, not a generative
+    LLM. No authentication layer — demo use only. SQLite default; configure
+    DATABASE_URL for PostgreSQL in production.
 
-# =============================================================================
-# ARTIFACT LOCATIONS
-# These paths are relative to the repo root. Only change if you moved files.
-# =============================================================================
 artifacts:
   source_code: "src/"
   setup_guide: "docs/setup-guide.md"
   architecture_doc: "docs/architecture.md"
-  demo_video: "demo/demo-video-link.txt"   # URL to hosted video (YouTube, Loom, Box)
-  live_demo: "demo/live-demo-url.txt"      # URL to deployed demo (optional)
+  demo_video: "demo/demo-video-link.txt"
+  live_demo: "demo/live-demo-url.txt"
   screenshots: "demo/screenshots/"
   presentation: "presentation/"

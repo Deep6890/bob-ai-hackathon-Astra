@@ -95,3 +95,11 @@ logs/
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# -- SQLite runtime databases -----------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+instance/
+src/backend/instance/
+src/backend/app.db

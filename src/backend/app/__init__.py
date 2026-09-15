@@ -54,10 +54,12 @@ def create_app():
     from app.routes.engine_routes import engine_bp
     from app.routes.mission_routes import mission_bp
     from app.routes.data_routes import data_bp
-    
+    from app.routes.copilot_routes import copilot_bp
+
     app.register_blueprint(system_bp, url_prefix='/api/v1')
     app.register_blueprint(engine_bp, url_prefix='/api/v1/engines')
     app.register_blueprint(mission_bp, url_prefix='/api/v1/mission')
     app.register_blueprint(data_bp, url_prefix='/api/v1/data')
+    app.register_blueprint(copilot_bp, url_prefix='/api/v1/copilot')
     
     return app

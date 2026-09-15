@@ -129,6 +129,32 @@ function KpiStrip({ engines, missionReadinessById }) {
   );
 }
 
+/* ── Critical Alert Banner ──────────────────────────────────────────────── */
+function CriticalAlertBanner({ engines, missionReadinessById }) {
+  const criticalEngines = engines.filter(e => {
+    const r = missionReadinessById[e.unit_number];
+    return r?.combined_assessment?.mission_readiness === 'NOT READY' ||
+           r?.rul_assessment?.margin_of_safety < 0;
+  });
+
+  if (criticalEngines.length === 0) return null;
+
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 rounded-2xl border border-danger/30 bg-danger/5">
+      <AlertTriangle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-bold text-danger mb-0.5">
+          {criticalEngines.length} engine{criticalEngines.length !== 1 ? 's' : ''} will not complete mission
+        </p>
+        <p className="text-[12px] text-danger/80">
+          Units {criticalEngines.map(e => e.unit_number).join(', ')} have negative safety margin.
+          Predicted RUL is less than the required {30}-cycle mission duration. Do not dispatch.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Engine Card ─────────────────────────────────────────────────────────── */
 function EngineCard({ engine, readiness, onSelectEngine }) {
   const combined  = readiness?.combined_assessment;
@@ -138,10 +164,20 @@ function EngineCard({ engine, readiness, onSelectEngine }) {
   const rul       = rul_data?.predicted_rul_cycles;
   const margin    = rul_data?.margin_of_safety;
   const cycle     = readiness?.latest_cycle ?? engine.latest_cycle;
+  const rec       = combined?.recommendation;
+
+  // First sentence of recommendation for HIGH priority cards
+  const recSnippet = rec && priority === 'HIGH'
+    ? rec.split('.')[0] + '.'
+    : null;
 
   return (
-    <div 
-      className="bg-white rounded-2xl border border-borderLight p-5 hover:border-borderSecondary transition-all cursor-pointer group flex flex-col justify-between"
+    <div
+      className={`rounded-2xl border p-5 hover:border-borderSecondary transition-all cursor-pointer group flex flex-col justify-between ${
+        margin != null && margin < 0
+          ? 'bg-danger/3 border-danger/20'
+          : 'bg-white border-borderLight'
+      }`}
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
       onClick={() => onSelectEngine(engine.unit_number)}
     >
@@ -156,7 +192,7 @@ function EngineCard({ engine, readiness, onSelectEngine }) {
           </span>
         </div>
         
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <p className="text-[10px] text-textMuted uppercase tracking-wider mb-0.5">Predicted RUL</p>
             <p className="text-sm font-semibold text-textPrimary">
@@ -164,15 +200,29 @@ function EngineCard({ engine, readiness, onSelectEngine }) {
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-textMuted uppercase tracking-wider mb-0.5">Status</p>
-            <p className="text-sm font-semibold text-textPrimary truncate">{status}</p>
+            <p className="text-[10px] text-textMuted uppercase tracking-wider mb-0.5">Safety Margin</p>
+            <p className={`text-sm font-semibold ${
+              margin == null ? 'text-textPrimary' :
+              margin < 0 ? 'text-danger' :
+              margin < 15 ? 'text-warning' : 'text-textPrimary'
+            }`}>
+              {margin != null ? `${margin >= 0 ? '+' : ''}${margin.toFixed(1)} cy` : '—'}
+            </p>
           </div>
         </div>
+
+        {/* Recommendation snippet for HIGH priority cards */}
+        {recSnippet && (
+          <p className="text-[11px] text-danger leading-snug mb-2 line-clamp-2">
+            {recSnippet}
+          </p>
+        )}
       </div>
       
       <div className="flex items-center justify-between mt-2 pt-3 border-t border-borderLight/50">
         <p className="text-[11px] text-textMuted">
           {cycle != null ? `Cycle ${cycle}` : 'Cycle unavailable'}
+          {status && status !== '—' && <span className="ml-2 font-semibold text-textSecondary">{status}</span>}
         </p>
         <button className="text-[11px] font-medium text-textSecondary group-hover:text-textPrimary flex items-center gap-1 transition-colors">
           Inspect <ChevronRight className="w-3.5 h-3.5" />
@@ -400,6 +450,7 @@ export default function Dashboard({ onSelectEngine }) {
 
   return (
     <div className="space-y-6">
+      <CriticalAlertBanner engines={engines} missionReadinessById={missionReadinessById} />
       <KpiStrip engines={engines} missionReadinessById={missionReadinessById} />
 
       <div>

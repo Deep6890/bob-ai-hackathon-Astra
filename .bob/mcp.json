@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "aeroready": {
+      "command": "python",
+      "args": ["src/mcp_server/server.py"],
+      "env": {
+        "AEROREADY_API_URL": "http://localhost:5000/api/v1"
+      }
+    }
+  }
+}

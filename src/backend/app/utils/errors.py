@@ -31,3 +31,14 @@ def register_error_handlers(app):
         })
         response.status_code = 404
         return response
+
+    @app.errorhandler(500)
+    def handle_internal_error(e):
+        response = jsonify({
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred on the server."
+            }
+        })
+        response.status_code = 500
+        return response

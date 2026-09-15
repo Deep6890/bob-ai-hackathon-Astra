@@ -6,7 +6,11 @@ import time
 import json
 
 BASE_URL = "http://127.0.0.1:5000/api/v1"
-DB_PATH = "E:/BoB/bob-ai-hackathon-Astra/src/backend/instance/app.db"
+# DB path is derived relative to this file's location so the test suite is portable.
+# It can also be overridden via the AEROREADY_DB_PATH environment variable.
+import pathlib
+_DEFAULT_DB = pathlib.Path(__file__).parent / "instance" / "app.db"
+DB_PATH = os.environ.get("AEROREADY_DB_PATH", str(_DEFAULT_DB))
 
 def run_tests():
     print("=== STARTING FULL PRODUCTION VERIFICATION SUITE ===")
