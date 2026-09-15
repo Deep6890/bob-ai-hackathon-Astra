@@ -36,7 +36,7 @@ submission:
   tech_stack:
     languages: ["Python 3.11", "JavaScript ES2022"]
     frameworks: ["Flask 3.0", "React 18", "Vite", "TailwindCSS", "SQLAlchemy", "FastMCP"]
-    ibm_technologies: ["IBM Bob (MCP integration via FastMCP)"]
+    ibm_technologies: ["IBM Bob (Used as primary IDE/coding assistant)", "IBM Bob (MCP integration via FastMCP)"]
     databases: ["SQLite (dev)", "PostgreSQL (production-compatible via DATABASE_URL)"]
     other: ["PyTorch 2.x", "scikit-learn", "NASA C-MAPSS dataset", "Recharts", "Lucide React", "Waitress", "Flask-Migrate"]
 

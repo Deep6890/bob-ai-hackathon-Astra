@@ -147,7 +147,17 @@ The end-to-end depth of the ML pipeline: from NASA C-MAPSS data through a rigoro
 
 ## 🔬 IBM Bob Integration
 
-AeroReady exposes five MCP tools to IBM Bob:
+Our project leverages IBM Bob in two distinct ways: **as a runtime interface** and **as our primary development IDE**.
+
+### 1. IBM Bob as a Coding Assistant (IDE)
+This entire project—from the ML pipeline to the React frontend—was built using IBM Bob as our primary coding assistant. We used Bob to rapidly scaffold the architecture, debug complex Flask routing issues, write our Tailwind CSS components, and execute codebase-wide refactoring. Bob essentially acted as a full-stack engineering partner that modified and wrote the core logic of the application.
+
+### 2. IBM Bob as a Flight Line Interface (MCP)
+**Where we used it:** We built a custom FastMCP server (`src/mcp_server/server.py`) that exposes five distinct tools to IBM Bob via the `.bob/mcp.json` configuration. These tools directly query the live Flask backend.
+
+**Why we used it:** Raw metrics are not easily digestible by flight line operators. IBM Bob provides a natural-language conversational interface that allows a non-technical maintenance chief to simply ask, *"Which engines need immediate attention?"* Because IBM Bob uses our MCP tools to retrieve deterministic ML evidence, its answers are strictly grounded in our data—guaranteeing zero hallucinations.
+
+AeroReady exposes these five MCP tools to IBM Bob:
 
 | Tool | What Bob can ask |
 |---|---|

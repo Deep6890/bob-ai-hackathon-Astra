@@ -79,4 +79,7 @@ AeroReady is an end-to-end mission readiness and predictive maintenance platform
 
 ## IBM Technologies Used
 
-- **IBM Bob (via FastMCP MCP integration):** AeroReady exposes five read-only tools through a FastMCP server that IBM Bob discovers via `.bob/mcp.json`. Bob calls these tools when a user asks fleet-related questions in natural language. The tools call the existing AeroReady Flask API, meaning Bob always sees live, real data. See `src/mcp_server/` for implementation.
+- **IBM Bob (As Development IDE):** This entire project was built using IBM Bob as the primary coding assistant and IDE. Bob was used to rapidly scaffold the ML pipeline, build the React frontend, and execute complex backend refactoring.
+- **IBM Bob (via FastMCP integration):** 
+  - **Where we used it:** AeroReady exposes five read-only tools through a FastMCP server (`src/mcp_server/`) that IBM Bob discovers via `.bob/mcp.json`. 
+  - **Why we used it:** Flight line operators need immediate, plain-English answers without hunting through dashboards. IBM Bob acts as the natural-language interface for these non-technical users. Bob calls these tools when a user asks fleet-related questions, and because the tools query our live Flask API, Bob's answers are strictly grounded in our deterministic ML evidence—eliminating the risk of LLM hallucinations.
