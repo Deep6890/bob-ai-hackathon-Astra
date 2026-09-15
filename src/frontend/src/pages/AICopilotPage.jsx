@@ -18,6 +18,7 @@ import { useContext, useState, useEffect, useRef } from 'react';
 import { Brain, Send, Loader2, ChevronDown, ChevronUp, AlertCircle, Shield, Activity, Gauge } from 'lucide-react';
 import { AppDataContext, MISSION_DURATION } from '../context/AppDataContext';
 import { api } from '../api';
+import ReactMarkdown from 'react-markdown';
 
 // ── Starter questions suggested to the user ───────────────────────────────────
 const STARTER_QUESTIONS = [
@@ -137,13 +138,23 @@ function MessageBubble({ message }) {
           style={isError ? {} : { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
         >
           {isError && <AlertCircle className="w-4 h-4 inline mr-1.5 mb-0.5" />}
-          {/* Render answer with line breaks preserved */}
-          {message.content.split('\n').map((line, i) => (
-            <span key={i}>
-              {line}
-              {i < message.content.split('\n').length - 1 && <br />}
-            </span>
-          ))}
+          {/* Render answer with markdown */}
+          <div className={`text-sm leading-relaxed ${isError ? 'text-danger' : 'text-textSecondary'}`}>
+            {isError ? (
+              message.content
+            ) : (
+              <ReactMarkdown
+                components={{
+                  p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                  li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                  strong: ({node, ...props}) => <strong className="font-bold text-textPrimary" {...props} />
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            )}
+          </div>
         </div>
 
         {/* Evidence panel (only for non-error assistant messages) */}
