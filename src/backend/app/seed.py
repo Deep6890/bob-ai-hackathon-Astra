@@ -159,11 +159,18 @@ def _truncate_all(session):
     session.execute(db.text("DELETE FROM assets"))
 
     # Reset PK sequences so IDs start from 1 again on each re-seed
+    is_sqlite = db.engine.url.drivername.startswith("sqlite")
+    
     for table in ["assets", "sensor_readings", "service_records",
                   "missions", "predictions", "readiness_results"]:
-        session.execute(db.text(
-            f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1"
-        ))
+        if is_sqlite:
+            try:
+                session.execute(db.text(f"DELETE FROM sqlite_sequence WHERE name='{table}'"))
+            except Exception:
+                pass # Table doesn't exist yet
+        else:
+            session.execute(db.text(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1"))
+
     session.commit()
     print("  All tables cleared and sequences reset.")
 
